@@ -17,7 +17,7 @@
 	Where to write the archive. Defaults to <repo>/Dist (gitignored).
 
 .EXAMPLE
-	./.dev/pack-sample-content.ps1
+	./Tools/pack-sample-content.ps1
 	gh release create v0.1.0 Dist/ModFrameworkSample-Content.zip --notes "Sample content for UE 5.8"
 #>
 [CmdletBinding()]

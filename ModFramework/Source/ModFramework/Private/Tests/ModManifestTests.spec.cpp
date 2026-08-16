@@ -103,7 +103,9 @@ const TCHAR* FModManifestSpec::GetFullManifestJson()
 	"entryPoint": {
 		"nativeModule": "BetterCombatRuntime",
 		"class": "/BetterCombat/BP_BetterCombatEntry.BP_BetterCombatEntry_C",
-		"contentBundles": ["/BetterCombat/DA_BetterCombatBundle.DA_BetterCombatBundle"]
+		"contentBundles": ["/BetterCombat/DA_BetterCombatBundle.DA_BetterCombatBundle"],
+		"scriptRuntime": "lua",
+		"scripts": ["Scripts/lib.lua", "Scripts/main.lua"]
 	},
 	"content": [
 		{ "path": "Content/BetterCombat.pak", "type": "Pak", "mountPoint": "/BetterCombat/", "mountOrder": 0 },
@@ -457,6 +459,21 @@ void FModManifestSpec::CompareManifests(const FString& What, const FModManifest&
 		{
 			ExpectString(FString::Printf(TEXT("%s: entryPoint.contentBundles[%d]"), *What, Index),
 				Actual.EntryPoint.ContentBundles[Index].ToString(), Expected.EntryPoint.ContentBundles[Index].ToString());
+		}
+	}
+
+	ExpectString(FString::Printf(TEXT("%s: entryPoint.scriptRuntime"), *What),
+		Actual.EntryPoint.ScriptRuntime.ToString(), Expected.EntryPoint.ScriptRuntime.ToString());
+
+	// Compared index by index rather than as a set: the load order of the scripts is the contract,
+	// so a round trip that reproduced the same paths in a different order would be a broken one.
+	if (TestEqual(*FString::Printf(TEXT("%s: script count"), *What),
+		Actual.EntryPoint.Scripts.Num(), Expected.EntryPoint.Scripts.Num()))
+	{
+		for (int32 Index = 0; Index < Expected.EntryPoint.Scripts.Num(); ++Index)
+		{
+			ExpectString(FString::Printf(TEXT("%s: entryPoint.scripts[%d]"), *What, Index),
+				Actual.EntryPoint.Scripts[Index], Expected.EntryPoint.Scripts[Index]);
 		}
 	}
 
@@ -1361,6 +1378,14 @@ void FModManifestSpec::Define()
 					TEXT("/BetterCombat/DA_BetterCombatBundle.DA_BetterCombatBundle"));
 			}
 
+			ExpectString(TEXT("entryPoint.scriptRuntime"), M.EntryPoint.ScriptRuntime.ToString(), TEXT("lua"));
+			if (TestEqual(TEXT("script count"), M.EntryPoint.Scripts.Num(), 2))
+			{
+				// Declaration order, not sorted order: "lib" before "main" is the point of the field.
+				ExpectString(TEXT("entryPoint.scripts[0]"), M.EntryPoint.Scripts[0], TEXT("Scripts/lib.lua"));
+				ExpectString(TEXT("entryPoint.scripts[1]"), M.EntryPoint.Scripts[1], TEXT("Scripts/main.lua"));
+			}
+
 			if (TestEqual(TEXT("content root count"), M.ContentRoots.Num(), 2))
 			{
 				ExpectString(TEXT("content[0].path"), M.ContentRoots[0].RelativePath, TEXT("Content/BetterCombat.pak"));
@@ -2202,6 +2227,197 @@ void FModManifestSpec::Define()
 				ExpectParseFailure(TEXT("a malformed bundle"),
 					FModManifestParser::ParseFromString(MakeManifestJson(TEXT(",\n\t\"entryPoint\": { \"contentBundles\": [\"nope nope\"] }"))),
 					TEXT("Manifest.InvalidEntryPoint"), TEXT("entryPoint.contentBundles[0]"));
+			});
+		});
+
+		// SECURITY plus authoring safety. A script is read off disk and executed as text, so its path
+		// gets the same containment rules a content root gets. The rest of this group guards the
+		// failure mode that costs a mod author an afternoon: a manifest that loads clean while none of
+		// the code they wrote ever runs.
+		Describe("Scripts", [this]()
+		{
+			It("rejects a script path that escapes the mod directory", [this]()
+			{
+				const TCHAR* const BadScripts[] =
+				{
+					TEXT("../main.lua"),
+					TEXT("Scripts/../../main.lua"),
+					TEXT("/abs/main.lua"),
+					TEXT("C:/main.lua"),
+					TEXT("~/main.lua")
+				};
+
+				for (const TCHAR* Script : BadScripts)
+				{
+					ExpectParseFailure(FString::Printf(TEXT("script '%s'"), Script),
+						FModManifestParser::ParseFromString(MakeManifestJson(*FString::Printf(
+							TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"%s\"] }"), Script))),
+						TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[0]"));
+				}
+			});
+
+			// A script path is a `.mod` table-of-contents key and appears in stack traces as well as
+			// being a filesystem path, so the backslash spelling is refused rather than rewritten -
+			// the same call the icon makes.
+			It("rejects a backslash spelled script path", [this]()
+			{
+				ExpectParseFailure(TEXT("a backslash"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts\\\\main.lua\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[0]"));
+			});
+
+			It("rejects an empty script entry and names its index", [this]()
+			{
+				ExpectParseFailure(TEXT("an empty string"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[0]"));
+
+				// The index has to be the one the entry really has in the file, so an author with a
+				// long list is told which line to look at.
+				ExpectParseFailure(TEXT("a blank entry after a good one"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts/main.lua\", \"   \"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[1]"));
+			});
+
+			// Case insensitively, because the same file listed twice would load twice on a
+			// case-sensitive filesystem and once on Windows - a difference that only shows up on
+			// somebody else's machine.
+			It("rejects the same script listed twice whatever its case", [this]()
+			{
+				ExpectParseFailure(TEXT("an exact repeat"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts/main.lua\", \"Scripts/main.lua\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[1]"));
+
+				ExpectParseFailure(TEXT("a repeat in a different case"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts/main.lua\", \"scripts/MAIN.LUA\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts[1]"));
+
+				// Two different files that merely share a name are not a duplicate.
+				ExpectNoDiagnostics(TEXT("two scripts in different folders"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts/main.lua\", \"Scripts/Sub/main.lua\"] }"))));
+			});
+
+			// Either half alone does nothing at all, and doing nothing quietly is worse than
+			// refusing: the author gets told, once, which half is missing.
+			It("rejects scripts without a runtime and a runtime without scripts", [this]()
+			{
+				ExpectParseFailure(TEXT("scripts with no runtime"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scripts\": [\"Scripts/main.lua\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scriptRuntime"));
+
+				ExpectParseFailure(TEXT("a blank runtime with scripts"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"   \", \"scripts\": [\"Scripts/main.lua\"] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scriptRuntime"));
+
+				ExpectParseFailure(TEXT("a runtime with no scripts"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\" }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts"));
+
+				ExpectParseFailure(TEXT("a runtime with an empty script array"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [] }"))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts"));
+
+				// Neither half is the normal case - most mods ship no scripting - and must stay silent.
+				ExpectNoDiagnostics(TEXT("an entry point with neither half"),
+					FModManifestParser::ParseFromString(MakeManifestJson(
+						TEXT(",\n\t\"entryPoint\": { \"class\": \"/Mod/BP_Entry.BP_Entry_C\" }"))));
+			});
+
+			It("rejects more than 64 scripts", [this]()
+			{
+				auto MakeScriptList = [](int32 Count)
+				{
+					FString List;
+					for (int32 Index = 0; Index < Count; ++Index)
+					{
+						List += FString::Printf(TEXT("%s\"Scripts/s%d.lua\""), Index == 0 ? TEXT("") : TEXT(", "), Index);
+					}
+					return List;
+				};
+
+				ExpectNoDiagnostics(TEXT("exactly 64 scripts"),
+					FModManifestParser::ParseFromString(MakeManifestJson(*FString::Printf(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [%s] }"), *MakeScriptList(64)))));
+
+				ExpectParseFailure(TEXT("65 scripts"),
+					FModManifestParser::ParseFromString(MakeManifestJson(*FString::Printf(
+						TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [%s] }"), *MakeScriptList(65)))),
+					TEXT("Manifest.InvalidScript"), TEXT("entryPoint.scripts"));
+			});
+
+			// The manifest layer must NOT check an extension against a runtime: it has to parse on a
+			// machine with no runtimes registered at all, which is exactly what the packaging tools
+			// are. That check belongs at load time, so an unknown runtime name parses clean here.
+			It("accepts a contained script list without knowing anything about the runtime", [this]()
+			{
+				const FModManifestParseResult Result = FModManifestParser::ParseFromString(MakeManifestJson(
+					TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"wasm\", \"scripts\": [\"Scripts/lib.wat\", \"main.txt\", \"Scripts/..data/late.lua\"] }")));
+
+				if (!ExpectNoDiagnostics(TEXT("an unregistered runtime and unfamiliar extensions"), Result))
+				{
+					return;
+				}
+
+				ExpectString(TEXT("entryPoint.scriptRuntime"), Result.Manifest.EntryPoint.ScriptRuntime.ToString(), TEXT("wasm"));
+
+				// Order is the contract: it survives the parse exactly as written.
+				if (TestEqual(TEXT("script count"), Result.Manifest.EntryPoint.Scripts.Num(), 3))
+				{
+					ExpectString(TEXT("entryPoint.scripts[0]"), Result.Manifest.EntryPoint.Scripts[0], TEXT("Scripts/lib.wat"));
+					ExpectString(TEXT("entryPoint.scripts[1]"), Result.Manifest.EntryPoint.Scripts[1], TEXT("main.txt"));
+					ExpectString(TEXT("entryPoint.scripts[2]"), Result.Manifest.EntryPoint.Scripts[2], TEXT("Scripts/..data/late.lua"));
+				}
+			});
+
+			// Both fields are optional, so the writer omits them when empty; an entry point that
+			// carries nothing but scripts still has to survive a round trip in its declared order.
+			It("round-trips an entry point that carries nothing but scripts", [this]()
+			{
+				const FModManifestParseResult First = FModManifestParser::ParseFromString(MakeManifestJson(
+					TEXT(",\n\t\"entryPoint\": { \"scriptRuntime\": \"lua\", \"scripts\": [\"Scripts/z_last.lua\", \"Scripts/a_first.lua\"] }")));
+
+				if (!ExpectNoDiagnostics(TEXT("the first parse"), First))
+				{
+					return;
+				}
+
+				FString Serialized;
+				if (!TestTrue(TEXT("serialises"), FModManifestParser::SerializeToString(First.Manifest, Serialized)))
+				{
+					return;
+				}
+
+				const FModManifestParseResult Second = FModManifestParser::ParseFromString(Serialized);
+				if (!ExpectNoDiagnostics(TEXT("the re-parse"), Second))
+				{
+					return;
+				}
+
+				CompareManifests(TEXT("script only round trip"), First.Manifest, Second.Manifest);
+
+				// Spelled out rather than left to CompareManifests, because the point of the test is
+				// that the writer preserved the declared order and not the sorted one.
+				if (TestEqual(TEXT("script count"), Second.Manifest.EntryPoint.Scripts.Num(), 2))
+				{
+					ExpectString(TEXT("entryPoint.scripts[0]"), Second.Manifest.EntryPoint.Scripts[0], TEXT("Scripts/z_last.lua"));
+					ExpectString(TEXT("entryPoint.scripts[1]"), Second.Manifest.EntryPoint.Scripts[1], TEXT("Scripts/a_first.lua"));
+				}
+
+				// Both fields are optional, so a manifest with no scripting must gain neither key.
+				FString Bare;
+				TestTrue(TEXT("serialises a scriptless manifest"), FModManifestParser::SerializeToString(MakeValidManifest(), Bare));
+				TestEqual(TEXT("no scriptRuntime key is written when empty"), Bare.Find(TEXT("scriptRuntime"), ESearchCase::CaseSensitive), INDEX_NONE);
+				TestEqual(TEXT("no scripts key is written when empty"), Bare.Find(TEXT("\"scripts\""), ESearchCase::CaseSensitive), INDEX_NONE);
 			});
 		});
 

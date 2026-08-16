@@ -36,7 +36,7 @@ The `.uproject`, `Source/` and `Config/` here already match what that template g
 copied content lines up. If a future engine version changes the template, this project's `Source/`
 is the authority — reconcile toward it.
 
-> **Maintainers:** produce the release archive with `.dev/pack-sample-content.ps1`, then attach the
+> **Maintainers:** produce the release archive with `Tools/pack-sample-content.ps1`, then attach the
 > result to a GitHub release. Re-cut it whenever the sample's content changes, and note the engine
 > version in the release body — content cooked by a newer editor will not open in an older one.
 

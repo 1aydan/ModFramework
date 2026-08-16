@@ -124,6 +124,30 @@ struct MODFRAMEWORK_API FModEntryPoint
 	/** Content bundles (UModContentBundle) loaded when the mod activates. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mod")
 	TArray<FSoftObjectPath> ContentBundles;
+
+	/**
+	 * Which registered IModScriptRuntime runs this mod's scripts, e.g. "lua". Empty means the mod
+	 * ships no scripting, which is the normal case.
+	 *
+	 * The manifest layer deliberately does NOT check this against the runtime registry, and does not
+	 * check a script's extension against it either: a manifest has to be parseable on a machine with
+	 * no runtimes registered at all, which is exactly the situation the packaging tools run in.
+	 * Matching a runtime to this name happens at load time, where the registry exists.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mod")
+	FName ScriptRuntime;
+
+	/**
+	 * Script files, relative to the mod root, LOADED IN THE ORDER LISTED.
+	 *
+	 * The order is part of the contract, not an implementation detail: a later script may rely on
+	 * what an earlier one set up, so nothing is allowed to sort or deduplicate this array.
+	 * FModManifestParser::ValidateManifest applies the same containment rules a content root gets -
+	 * no absolute path, no drive letter, no ".." segment - because a mod must never be able to name a
+	 * file outside of its own directory.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mod")
+	TArray<FString> Scripts;
 };
 
 /** What this mod declares it will modify, for conflict detection. */

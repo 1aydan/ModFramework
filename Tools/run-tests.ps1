@@ -29,7 +29,7 @@ $Project = "F:\SelfProjects\Unreal\_ModHarness\ModHarness.uproject"
 $Log     = "F:\SelfProjects\Unreal\_ModHarness\Saved\Logs\AutomationRun.log"
 $StdOut  = "F:\SelfProjects\Unreal\_ModHarness\tests-stdout.log"
 
-if (-not (Test-Path $Project)) { throw "No harness project at '$Project'. See .dev/build-harness.ps1." }
+if (-not (Test-Path $Project)) { throw "No harness project at '$Project'. See Tools/build-harness.ps1." }
 
 New-Item -ItemType Directory -Force (Split-Path $Log) | Out-Null
 Remove-Item $Log, $StdOut -ErrorAction SilentlyContinue

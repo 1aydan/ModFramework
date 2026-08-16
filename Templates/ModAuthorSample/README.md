@@ -19,7 +19,7 @@ type, a `Build.cs` dependency that crept in — compiles fine there and stays in
 author hits it. Here it fails immediately:
 
 ```powershell
-./.dev/check-sdk-boundary.ps1
+./Tools/check-sdk-boundary.ps1
 ```
 
 > If that fails, **do not** fix it by adding a dependency to this project. The failure is telling you

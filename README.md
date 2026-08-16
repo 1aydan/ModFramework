@@ -12,8 +12,11 @@ A reusable modding framework for Unreal Engine 5, in two plugins:
 The goal: let a UE5 game expose a **controlled, versioned modding API without shipping game source**,
 and let mod authors build against it without ever opening the game project.
 
-> **Status: in development.** The core runtime is being implemented; nothing is release-ready yet.
-> See [Roadmap](#roadmap).
+> **Status: pre-release.** The framework, SDK, sample game and mod-author project all compile, and
+> four automation suites cover the runtime. What has *not* happened yet: no mod has been loaded end
+> to end, because that needs Blueprint and Data Asset content which can only be authored in the
+> editor. Treat it as "the machinery is built and tested, the demo is not shot." See
+> [Roadmap](#roadmap).
 
 ---
 
@@ -61,7 +64,7 @@ Every other build here has the game present, so a leak from the SDK into game co
 stays invisible until a mod author hits it. This turns that into a build failure:
 
 ```powershell
-./.dev/check-sdk-boundary.ps1
+./Tools/check-sdk-boundary.ps1
 ```
 
 ## Getting started
@@ -124,24 +127,48 @@ distinction matters and what it means for your player-facing UI.
 | [Security](docs/Security.md) | The trust model, and its honest limits |
 | [Multiplayer](docs/Multiplayer.md) | Session manifests, server authority |
 | [Conflicts](docs/Conflicts.md) | Claims, policies, resolution |
+| [Scripting](docs/Scripting.md) | Lua mods, the binding surface, resource budgets |
 | [Public API marking](docs/PublicAPIMarking.md) | Marking what goes into your SDK |
 | [Packaging](docs/Packaging.md) | The `.mod` format, cooking, distribution |
 | [Console commands](docs/ConsoleCommands.md) | Runtime diagnostics |
 
 ## Roadmap
 
-MVP — a third-party developer can install the SDK in a separate project, build a mod, package it,
-drop it into the game, and have it discovered, loaded and activated.
+The MVP target: a third-party developer installs the SDK in a separate project, builds a mod,
+packages it, drops it into the game, and it is discovered, loaded and activated.
 
-- [x] Manifest format, semver and version ranges
-- [ ] Mod discovery, validation, dependency resolution
-- [ ] Lifecycle, content mounting, asset discovery
-- [ ] API and extension registration
-- [ ] Blueprint / Data Asset modding path
-- [ ] SDK generation and mod packaging
-- [ ] Console commands and editor tooling
-- [ ] Automated tests
-- [ ] Working example mod in the sample game
+**Built and compiling**
+
+- [x] Manifest format, semver, version ranges
+- [x] Discovery, validation, dependency resolution with deterministic load order
+- [x] Lifecycle — Loaded and Activated as separate states
+- [x] Content mounting behind a Pak/IoStore abstraction, asset discovery
+- [x] API, extension point and event registration
+- [x] Permissions, mod-isolated save data, per-mod configuration
+- [x] Multiplayer session manifest validation
+- [x] `.mod` package format — reader **and** writer
+- [x] SDK generation from `ModPublic` metadata
+- [x] 22 `Mod.*` console commands
+- [x] Editor tooling — Mod Developer window and SDK generation window
+- [x] Lua 5.5 scripting with a genuine sandbox
+- [x] Four automation suites (lifecycle verified 101/101 headless)
+
+**Not done**
+
+- [ ] **Any `.uasset` content** — so no mod has actually loaded end to end. This is the honest gap:
+      Blueprint entry points, extension Blueprints and Data Assets are binary and need the editor.
+- [ ] Script entry points wired into the lifecycle *(in progress)*
+- [ ] One-click "launch game with this mod" for the mod-author window
+- [ ] Declarative data patching — property-level, so mods stack instead of overwriting each other
+
+**Verify it yourself**
+
+```powershell
+./Tools/build-harness.ps1        # the plugins, in isolation
+./Tools/build-sample.ps1         # the plugins inside a real game
+./Tools/check-sdk-boundary.ps1   # the SDK with no game source present
+./Tools/run-tests.ps1            # the automation suites
+```
 
 Deliberately **not** in the MVP: scripting, native C++ mods, Steam Workshop integration. Each needs
 the lifecycle, SDK boundary and mounting to be stable first.

@@ -41,7 +41,9 @@ Current `manifestVersion`: **1**
 	"entryPoint": {
 		"nativeModule": "",
 		"class": "/BetterCombat/BP_BetterCombatEntry.BP_BetterCombatEntry_C",
-		"contentBundles": ["/BetterCombat/DA_BetterCombatBundle.DA_BetterCombatBundle"]
+		"contentBundles": ["/BetterCombat/DA_BetterCombatBundle.DA_BetterCombatBundle"],
+		"scriptRuntime": "lua",
+		"scripts": ["Scripts/main.lua"]
 	},
 
 	"content": [
@@ -264,6 +266,7 @@ Errors — the mod will not load:
 | `Manifest.DuplicateDependency` | The same id appears twice in `dependencies`. |
 | `Manifest.InvalidContentRoot` | An absolute path, a `..` escape, or a malformed mount point. |
 | `Manifest.InvalidEntryPoint` | `entryPoint.class` is not a valid object path. |
+| `Manifest.InvalidScript` | A script path escapes the mod directory, is empty, is listed twice, or `scriptRuntime` and `scripts` are not both present. |
 | `Manifest.InvalidPermission` | A permission name is empty or contains whitespace. |
 | `Manifest.InvalidClaim` | A claim is missing its extension point or resource. |
 

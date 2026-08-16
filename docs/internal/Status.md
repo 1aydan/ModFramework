@@ -3,13 +3,17 @@
 Internal working document. Read this first when resuming work with no prior conversation context.
 
 **Last updated:** 2026-08-16 — **the whole stack compiles clean**, including the sample game with
-its mod integration. 121 C++ files. Verify plugins alone with `.dev/build-harness.ps1`, or the full
-integration with `.dev/build-sample.ps1` (close the editor first — it locks module DLLs).
+its mod integration. 121 C++ files. Verify plugins alone with `Tools/build-harness.ps1`, or the full
+integration with `Tools/build-sample.ps1` (close the editor first — it locks module DLLs).
 
 Working end to end in code: manifests, versioning, dependency resolution, lifecycle, content
-mounting, API/extension/event registries, permissions, save isolation, multiplayer validation,
-`.mod` read **and write**, console commands, and a real game registering a real modding surface.
-Outstanding: SDK generation, 2 of 4 test suites, editor tooling, and any `.uasset` content.
+mounting, API/extension/event registries, permissions, per-mod config, save isolation, multiplayer
+validation, `.mod` read **and write**, SDK generation, 22 console commands, both editor windows,
+Lua 5.5 scripting with a real sandbox, and a game registering a real modding surface.
+
+**The one honest gap: no `.uasset` content exists, so no mod has ever actually loaded end to end.**
+Every subsystem is built and four automation suites pass, but the integration has not been run.
+Treat "compiles and tests green" as exactly that.
 
 ---
 
@@ -31,14 +35,25 @@ before using it — that habit caught several version-drift bugs already (see Go
 ```
 Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/ModFramework (private)
 ├── ModFramework/                  the framework plugin
-│   └── Source/{ModFramework, ModFrameworkDeveloper, ModFrameworkEditor}
-├── GameModSDK/                    the reference SDK plugin (scaffolded, no content yet)
-├── Templates/ModFrameworkSample/  UE5 Third Person sample game, user-created
-│   └── Mods/ExampleMod/           manifest + Icon.png; Blueprint content not yet authored
-├── docs/                          10 public references + internal/
-├── .dev/                          workflow scripts and the compile harness script
-└── Setup.ps1                      links both plugins into the sample project
+│   └── Source/
+│       ├── ModFramework/          runtime
+│       ├── ModFrameworkDeveloper/ packaging, validation, SDK generation
+│       ├── ModFrameworkEditor/    Mod Developer window, SDK generation window
+│       ├── ModFrameworkLua/       Lua runtime + UModContext bindings
+│       └── ThirdParty/Lua/        vendored Lua 5.5 (its own module)
+├── GameModSDK/                    APIs, extension points, events, data assets, validator
+├── Templates/
+│   ├── ModFrameworkSample/        the game; Modding/ registers its surface, Mods/ is discovered
+│   └── ModAuthorSample/           the mod author; SDK only, no game source
+├── docs/                          11 public references + internal/
+├── Tools/                         build, test, boundary-check and packaging scripts (committed)
+└── Setup.ps1                      links both plugins into both sample projects
 ```
+
+`.dev/` holds the agent orchestration scripts used to author parts of this repository. It is
+**gitignored** — those scripts embed absolute local paths and are a record of how the work was
+produced, not something a contributor builds or runs. Do not add references to them from committed
+documents; they will dangle for anyone who clones.
 
 **Nothing is committed.** The user commits themselves — never commit or push on their behalf.
 
@@ -60,7 +75,7 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
 | **Native C++ mods stay unimplemented — a custom engine makes them undistributable** | The manifest parses and validates `entryPoint.nativeModule` and `native_code` is a registered dangerous permission, but nothing loads it. The blocker is not framework work (`IPluginManager::MountExplicitlyLoadedPlugin` exists and the hook is ~a day). It is that `FModuleManager` rejects any module whose `.modules` BuildId mismatches (`ModuleManager.cpp:1944`) — and worse, **a studio with a modified engine has a different ABI entirely** (struct layouts, vtables, inlined code), so a mod built against stock UE would corrupt memory rather than fail cleanly. Enabling native mods therefore requires distributing the studio's whole custom engine, which is often legally impossible: console platform code is under NDA. **Lua is the better second tier precisely because it has zero engine coupling** — see the scripting note below. Same reasoning one level down applies to Blueprint: if engine changes touch asset serialisation, mod authors need a custom editor dev kit to cook against. |
 | **Mental model: ModFramework is Forge, GameModSDK is the game's published API** | The user's framing, and a useful checklist. Framework = loader, discovery, lifecycle, registries, event bus, config, packaging format. SDK = the game-specific surface a studio publishes. A mod jar ↔ a `.mod`; `mods/` ↔ `{Project}/Mods`; `mods.toml` ↔ `mod.json`. When asking "should X live in the framework?", ask whether Forge would own it. |
 | **Package reader AND writer both live in ModFramework** | Considered moving the writer to the SDK (mod authors need packaging, and they receive the SDK). Rejected: the writer serialises using the runtime module's own `operator<<`, so reader/writer agreement is structural rather than disciplinary — splitting them makes two implementations of one spec. Packaging is also game-agnostic, so every generated SDK would carry a duplicate, and a format change would need every SDK regenerated. Mod authors already get packaging via `ModFrameworkDeveloper`, which ships in the bundle. **What genuinely belongs in the SDK is game-specific pre-package validation** (do the referenced extension points exist? are the requested permissions ones this game defines?) — not yet written. |
-| **Sample game `Content/` is gitignored** | ~135 MB of stock Epic template assets this project didn't author. Repo is 1.1 MB / 202 files instead of 135 MB / 851. Ships as a GitHub release asset once the repo goes public — build it with `.dev/pack-sample-content.ps1`. The ignore is **anchored** (`/Templates/ModFrameworkSample/Content/`) so the example mod's content and any plugin `Content/` stay tracked. Never widen it to a bare `Content/`. |
+| **Sample game `Content/` is gitignored** | ~135 MB of stock Epic template assets this project didn't author. Repo is 1.1 MB / 202 files instead of 135 MB / 851. Ships as a GitHub release asset once the repo goes public — build it with `Tools/pack-sample-content.ps1`. The ignore is **anchored** (`/Templates/ModFrameworkSample/Content/`) so the example mod's content and any plugin `Content/` stay tracked. Never widen it to a bare `Content/`. |
 
 ---
 
@@ -116,18 +131,14 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
 2. ~~Restructure into `ModFramework/`~~ — done
 3. ~~First compile~~ — done. 13 diagnostics → 2 real bugs (both in Gotchas above), both fixed.
    4 of the 13 were files not yet written.
-4. `.dev/workflows/02-integration.js` (run `wf_4c206c88-a55`) — **partially complete.** Landed and
-   verified non-truncated: `UModContext`, `UModEntryPointBase`, `UModIconCache` + the manifest
-   `icon` field, `UModSubsystem` (2448-line .cpp), and the full `Mod.*` console command set
-   (2454-line .cpp).
-   **Still missing: all four automation test suites.** Those agents were killed by a monthly API
-   spend limit, not by any code problem. To finish them:
-   `Workflow({scriptPath: '.dev/workflows/02-integration.js', resumeFromRunId: 'wf_4c206c88-a55'})`
-   replays the five completed agents from cache and re-runs only the test agents. If the run id has
-   expired, just run the script fresh — agents overwrite whole files, so re-running is safe; only
-   check for a file truncated by an agent killed mid-write.
+4. ~~`UModContext`, `UModEntryPointBase`, `UModIconCache`, `UModSubsystem`, console commands~~ — done
+5. ~~Four automation suites~~ — done. Lifecycle verified 101/101 headless; it checks all 144
+   (From, To) state-transition pairs rather than a sample, and includes a regression test for the
+   `TObjectPtr` sort crash in Gotchas.
+6. ~~SDK generation, `.mod` writer, both editor windows, GameModSDK surface, mod-author sample,
+   per-mod config, Lua 5.5 runtime~~ — done
 
-   **Two lifecycle constraints the ModContext agent flagged — verify `UModSubsystem` honours them:**
+   **Two lifecycle constraints — verified honoured, do not regress them:**
    - `UnloadMod` must call `UModExtensionRegistry::UnregisterAllForMod`,
      `UModEventBus::UnsubscribeAllForMod` and `UModAPIRegistry::UnregisterAllForMod` **before**
      `UModRegistry::ReleaseModObjects`. Extensions created via `UModContext` are both held by the
@@ -136,7 +147,7 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
    - `UModContext` must be created with the subsystem as its outer, and the entry point with its
      context as outer — both `GetWorld()` fallbacks depend on that chain.
 5. ~~Compile clean~~ — **done.** All four modules build and link. Two bugs fixed along the way, both
-   recorded in Gotchas. Re-verify any time with `.dev/build-harness.ps1`, which builds a host project at
+   recorded in Gotchas. Re-verify any time with `Tools/build-harness.ps1`, which builds a host project at
    `F:\SelfProjects\Unreal\_ModHarness` that junctions both plugins in. Prefer it over the sample
    project while the user's editor is open — building would fight the editor for module DLL locks
    and kill their MCP server. Pass `-Clean` to wipe plugin intermediates.
@@ -167,14 +178,18 @@ rather than depending on local editor state. **Not yet done.**
 
 ## Known incomplete
 
-- **Two of four automation test suites are missing** — `ModLifecycleTests.spec.cpp` and
-  `ModSystemsTests.spec.cpp`. `ModManifestTests` and `ModDependencyTests` landed and compile.
-  The missing agents were killed by an API spend limit, not by any code problem.
-- **SDK generation is not written.** `FModPublicApiScanner`, `FModSDKGenerator` and the
-  `GenerateModSDK` commandlet. Everything they depend on exists and compiles; see
-  `.dev/workflows/03-sdk-and-packaging.js` for the full brief (the `tool:sdkgen` agent).
-- **Editor tooling is placeholder only** — see the placeholder list below. This is the phase the
-  user explicitly asked for last, both mod-author and game-developer sides.
+- **Script entry points are documented but not yet wired.** `docs/ManifestFormat.md`,
+  `docs/Scripting.md` and `Templates/ModAuthorSample/Mod/mod.json` all describe
+  `entryPoint.scriptRuntime` / `entryPoint.scripts`, but the parser does not read them and nothing
+  loads them. This is the one place the docs are ahead of the code — deliberately, so the shape was
+  settled before implementation, but it must not stay that way.
+- **`IModContentMounter` and `IModSaveMigration` carry a latent link bug.** Both are `MODFRAMEWORK_API`
+  header-only interfaces, which is exactly what broke `IModScriptRuntime`: MSVC exports no implicit
+  ctor/dtor for a class nothing constructs in-module, while an out-of-module implementer sees them as
+  `dllimport` and refuses to generate its own — two unresolved externals for functions that do
+  nothing. `IModProvider` only escapes it because `FLocalFileModProvider` instantiates it inside
+  ModFramework. Fix by dropping the macro, as `IModScriptRuntime` now does with a comment explaining
+  why. Not yet done: it cannot be verified without writing an out-of-module implementation.
 - **No `.uasset` content exists**, so the example mod cannot actually load yet. Needs a live editor
   over MCP; `.uasset` is binary and cannot be hand-authored.
 - These are **placeholders** that workflow 2 / the editor phase replace, not finished work:

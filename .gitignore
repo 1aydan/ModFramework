@@ -30,6 +30,12 @@ Build/
 /Dist/
 *.mod
 
+# Agent orchestration scripts used to author parts of this repository. They are a record of how the
+# work was produced, not something a contributor needs to build, run or maintain — and they embed
+# absolute local paths, so they would not work on another machine anyway. Developer tooling lives in
+# Tools/ and IS committed.
+/.dev/
+
 # Created by Setup.ps1 — junctions into the sibling plugin folders, never committed
 /Templates/*/Plugins/
 
@@ -37,3 +43,4 @@ Build/
 Thumbs.db
 desktop.ini
 .DS_Store
+/docs/internal

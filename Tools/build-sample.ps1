@@ -4,7 +4,7 @@
 	Builds the sample game with both plugins installed.
 
 .DESCRIPTION
-	This is the integration check that .dev/build-harness.ps1 cannot make: the harness proves the
+	This is the integration check that Tools/build-harness.ps1 cannot make: the harness proves the
 	plugins compile in isolation, this proves they compile as part of a real game that also depends
 	on them from its own module.
 

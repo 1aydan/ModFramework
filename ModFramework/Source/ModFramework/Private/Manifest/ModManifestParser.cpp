@@ -59,6 +59,7 @@ namespace ModManifestParserPrivate
 		constexpr const TCHAR* EmptyContent = TEXT("Manifest.EmptyContent");
 		constexpr const TCHAR* InvalidClaim = TEXT("Manifest.InvalidClaim");
 		constexpr const TCHAR* InvalidIcon = TEXT("Manifest.InvalidIcon");
+		constexpr const TCHAR* InvalidScript = TEXT("Manifest.InvalidScript");
 	}
 
 	/** Canonical JSON key names. Defined once so the reader and the writer can never drift apart. */
@@ -94,6 +95,8 @@ namespace ModManifestParserPrivate
 		constexpr const TCHAR* NativeModule = TEXT("nativeModule");
 		constexpr const TCHAR* Class = TEXT("class");
 		constexpr const TCHAR* ContentBundles = TEXT("contentBundles");
+		constexpr const TCHAR* ScriptRuntime = TEXT("scriptRuntime");
+		constexpr const TCHAR* Scripts = TEXT("scripts");
 		constexpr const TCHAR* Path = TEXT("path");
 		constexpr const TCHAR* Type = TEXT("type");
 		constexpr const TCHAR* MountPoint = TEXT("mountPoint");
@@ -121,6 +124,12 @@ namespace ModManifestParserPrivate
 	/** Inclusive bounds on FModManifest::Priority. */
 	constexpr int32 MinPriority = -1000;
 	constexpr int32 MaxPriority = 1000;
+
+	/**
+	 * Most scripts one mod may list. Far above anything a real mod needs - a script that wants more
+	 * files organises them itself - so hitting this is an authoring error, not a big mod.
+	 */
+	constexpr int32 MaxScripts = 64;
 
 	FString JoinFieldPath(const FString& Prefix, const FString& Key)
 	{
@@ -633,6 +642,42 @@ namespace ModManifestParserPrivate
 		return true;
 	}
 
+	/**
+	 * SECURITY: decides whether an `entryPoint.scripts` entry names a file inside the mod directory.
+	 *
+	 * A script is the one kind of mod content that is read and executed as text, so its path gets
+	 * exactly the containment rules a content root gets and not a second implementation of them -
+	 * two copies of a security rule drift apart, and the copy that drifts is the one nobody reads.
+	 * The single addition is the icon's rule about spelling, for the same reason: a script path is
+	 * used both as a filesystem path and as a `.mod` table-of-contents lookup key, and it is echoed
+	 * back in stack traces, so the two spellings must not be allowed to diverge.
+	 *
+	 * Deliberately absent: any check that the extension belongs to a registered runtime. This runs
+	 * where no runtime registry exists - the packaging tools parse manifests on machines with no
+	 * runtimes registered at all - so that check belongs at load time.
+	 */
+	bool IsSafeScriptPath(const FString& InPath, FString& OutReason)
+	{
+		if (InPath.Contains(TEXT("\\"), ESearchCase::CaseSensitive))
+		{
+			OutReason = TEXT("it contains a backslash; script paths are written with forward slashes");
+			return false;
+		}
+
+		if (!IsSafeRelativeContentPath(InPath, OutReason))
+		{
+			return false;
+		}
+
+		if (FPaths::GetCleanFilename(InPath).IsEmpty())
+		{
+			OutReason = TEXT("it does not name a file");
+			return false;
+		}
+
+		return true;
+	}
+
 	/** A mount point must look like "/Word/" so it can serve as an Unreal package root. */
 	bool IsValidMountPoint(const FString& In, FString& OutReason)
 	{
@@ -828,7 +873,43 @@ namespace ModManifestParserPrivate
 			}
 		}
 
-		static const TCHAR* const KnownKeys[] = { Keys::NativeModule, Keys::Class, Keys::ContentBundles };
+		const FString RuntimePath = JoinFieldPath(Keys::EntryPoint, Keys::ScriptRuntime);
+		FString RuntimeText;
+		if (ReadStringField(*EntryPoint, Keys::ScriptRuntime, RuntimePath, Ctx, RuntimeText) == EFieldStatus::Present)
+		{
+			// Trimmed before the FName is built so that a blank value is indistinguishable from an
+			// absent one - FName(TEXT("")) is NAME_None - and so the writer cannot re-emit padding.
+			TryMakeName(RuntimeText.TrimStartAndEnd(), RuntimePath, Codes::InvalidScript, Ctx, Out.ScriptRuntime);
+		}
+
+		const FString ScriptsPath = JoinFieldPath(Keys::EntryPoint, Keys::Scripts);
+		const TArray<TSharedPtr<FJsonValue>>* ScriptValues = nullptr;
+		if (ReadArrayField(*EntryPoint, Keys::Scripts, ScriptsPath, Ctx, ScriptValues) == EFieldStatus::Present)
+		{
+			Out.Scripts.Reset();
+			Out.Scripts.Reserve(ScriptValues->Num());
+
+			for (int32 Index = 0; Index < ScriptValues->Num(); ++Index)
+			{
+				const FString ElementPath = FString::Printf(TEXT("%s[%d]"), *ScriptsPath, Index);
+
+				FString ScriptText;
+				if (!TryGetStringElement(*ScriptValues, Index, ElementPath, Ctx, ScriptText))
+				{
+					continue;
+				}
+
+				// Stored verbatim, empty entries included: the load ORDER of this array is part of
+				// the contract, so nothing here sorts, deduplicates or silently drops an element.
+				// ValidateManifest judges each entry against the index it really has.
+				Out.Scripts.Add(MoveTemp(ScriptText));
+			}
+		}
+
+		static const TCHAR* const KnownKeys[] =
+		{
+			Keys::NativeModule, Keys::Class, Keys::ContentBundles, Keys::ScriptRuntime, Keys::Scripts
+		};
 		WarnUnknownFields(*EntryPoint, MakeArrayView(KnownKeys), Keys::EntryPoint, Ctx);
 	}
 
@@ -1335,7 +1416,8 @@ namespace ModManifestParserPrivate
 			Root->SetArrayField(Keys::Permissions, MoveTemp(Values));
 		}
 
-		if (!In.EntryPoint.NativeModule.IsEmpty() || !In.EntryPoint.EntryClass.IsNull() || In.EntryPoint.ContentBundles.Num() > 0)
+		if (!In.EntryPoint.NativeModule.IsEmpty() || !In.EntryPoint.EntryClass.IsNull() || In.EntryPoint.ContentBundles.Num() > 0
+			|| !In.EntryPoint.ScriptRuntime.IsNone() || In.EntryPoint.Scripts.Num() > 0)
 		{
 			const TSharedPtr<FJsonObject> EntryPoint = MakeShared<FJsonObject>();
 
@@ -1356,6 +1438,21 @@ namespace ModManifestParserPrivate
 					Values.Add(MakeShared<FJsonValueString>(Bundle.ToString()));
 				}
 				EntryPoint->SetArrayField(Keys::ContentBundles, MoveTemp(Values));
+			}
+			if (!In.EntryPoint.ScriptRuntime.IsNone())
+			{
+				EntryPoint->SetStringField(Keys::ScriptRuntime, In.EntryPoint.ScriptRuntime.ToString());
+			}
+			if (In.EntryPoint.Scripts.Num() > 0)
+			{
+				// Written in the declared order, never sorted: the order is what the manifest means.
+				TArray<TSharedPtr<FJsonValue>> Values;
+				Values.Reserve(In.EntryPoint.Scripts.Num());
+				for (const FString& Script : In.EntryPoint.Scripts)
+				{
+					Values.Add(MakeShared<FJsonValueString>(Script));
+				}
+				EntryPoint->SetArrayField(Keys::Scripts, MoveTemp(Values));
 			}
 
 			Root->SetObjectField(Keys::EntryPoint, EntryPoint);
@@ -1793,6 +1890,81 @@ void FModManifestParser::ValidateManifest(const FModManifest& In, const FString&
 			{
 				Ctx.Error(Codes::InvalidEntryPoint, ElementPath,
 					FString::Printf(TEXT("'%s' names a package but no asset."), *Bundle.ToString()));
+			}
+		}
+	}
+
+	// --- Scripts ----------------------------------------------------------
+	// SECURITY plus authoring safety. Script paths are contained exactly as content roots are, and
+	// a half-declared scripting section is an error rather than a warning: the alternative is a mod
+	// that loads happily and silently runs none of the code its author wrote, which is the worst of
+	// the available outcomes because nothing anywhere says so.
+	{
+		const FString RuntimePath = JoinFieldPath(Keys::EntryPoint, Keys::ScriptRuntime);
+		const FString ScriptsPath = JoinFieldPath(Keys::EntryPoint, Keys::Scripts);
+
+		const FString Runtime = In.EntryPoint.ScriptRuntime.IsNone() ? FString() : In.EntryPoint.ScriptRuntime.ToString();
+		const bool bHasRuntime = !Runtime.TrimStartAndEnd().IsEmpty();
+		const int32 NumScripts = In.EntryPoint.Scripts.Num();
+
+		// Nothing here checks the runtime name against the runtime registry, or a script's extension
+		// against the runtime's. This code runs where no registry exists - the packaging tools parse
+		// manifests on machines with no runtimes registered at all - so that check lives at load time.
+		if (bHasRuntime && NumScripts == 0)
+		{
+			Ctx.Error(Codes::InvalidScript, ScriptsPath,
+				FString::Printf(TEXT("'entryPoint.scriptRuntime' names the '%s' runtime but 'entryPoint.scripts' is empty, so no script would ever run. List the scripts, or remove 'scriptRuntime'."),
+					*Runtime));
+		}
+		else if (!bHasRuntime && NumScripts > 0)
+		{
+			Ctx.Error(Codes::InvalidScript, RuntimePath,
+				FString::Printf(TEXT("'entryPoint.scripts' lists %d script(s) but 'entryPoint.scriptRuntime' is empty, so nothing would run them. Name a runtime, such as \"lua\"."),
+					NumScripts));
+		}
+
+		if (NumScripts > MaxScripts)
+		{
+			Ctx.Error(Codes::InvalidScript, ScriptsPath,
+				FString::Printf(TEXT("'entryPoint.scripts' lists %d scripts; the maximum is %d."), NumScripts, MaxScripts));
+		}
+
+		// Compared case insensitively because the same file listed twice would load twice on a
+		// case-sensitive filesystem and once on Windows - a difference that would only ever show up
+		// on somebody else's machine.
+		TSet<FString> SeenScripts;
+		SeenScripts.Reserve(NumScripts);
+
+		for (int32 Index = 0; Index < NumScripts; ++Index)
+		{
+			const FString& Script = In.EntryPoint.Scripts[Index];
+			const FString ElementPath = FString::Printf(TEXT("%s[%d]"), *ScriptsPath, Index);
+
+			if (Script.TrimStartAndEnd().IsEmpty())
+			{
+				Ctx.Error(Codes::InvalidScript, ElementPath,
+					FString::Printf(TEXT("'%s' is empty; every entry must name a script file inside the mod directory."), *ElementPath));
+				continue;
+			}
+
+			FString Reason;
+			if (!IsSafeScriptPath(Script, Reason))
+			{
+				Ctx.Error(Codes::InvalidScript, ElementPath,
+					FString::Printf(TEXT("Script path '%s' was rejected because %s. Script paths must stay inside the mod directory, such as \"Scripts/main.lua\"."),
+						*Script, *Reason));
+				continue;
+			}
+
+			const FString Key = Script.ToLower();
+			if (SeenScripts.Contains(Key))
+			{
+				Ctx.Error(Codes::InvalidScript, ElementPath,
+					FString::Printf(TEXT("Script '%s' is listed more than once; scripts load in the order given, so a repeat would run it twice."), *Script));
+			}
+			else
+			{
+				SeenScripts.Add(Key);
 			}
 		}
 	}
