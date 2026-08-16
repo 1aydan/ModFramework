@@ -1,0 +1,126 @@
+Using bundled DotNet SDK version: 10.0 win-x64
+Running UnrealBuildTool: dotnet "..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" ModAuthorSampleEditor Win64 Development -project=F:\SelfProjects\Unreal\Plugins\ModFramework\Templates\ModAuthorSample\ModAuthorSample.uproject -waitmutex -NoHotReload
+Log file: C:\Users\aydan\AppData\Local\UnrealBuildTool\Log.txt
+Determining max actions to execute in parallel (8 physical cores, 16 logical cores)
+  Executing up to 8 processes, one per physical core
+UbaServer - Listening on 0.0.0.0:1345
+Invalidating makefile for ModAuthorSampleEditor (source file added)
+UHT compiled-in object format Default
+Building ModAuthorSampleEditor...
+===== Toolchain Information =====
+Using ISPC compiler (F:\SelfProjects\Unreal\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2) 
+Using Visual Studio 14.44.35227 toolchain (C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.22621.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+[Adaptive Build] Excluded from GameModSDK unity file: GameModSDKModule.cpp, GameModSDKVersion.cpp, GameCombatModAPI.cpp, GameUIModAPI.cpp, GameWorldModAPI.cpp, GameEnemyDefinition.cpp, GameWeaponDefinition.cpp, GameModEvents.cpp, GameEnemyExtension.cpp, GameModSDKExtensionPoints.cpp, GameRuleExtension.cpp, GameUIExtension.cpp, GameWeaponExtension.cpp, GameModValidator.cpp
+[Adaptive Build] Excluded from ModFrameworkEditor unity file: ModDeveloperModel.cpp, ModDeveloperWindow.cpp, ModEditorCommands.cpp, ModFrameworkEditorModule.cpp, ModPackagingSettings.cpp, ModSDKWindow.cpp, ModDeveloperUI.cpp, ModSDKWidgetUtils.cpp, SModApiInspectorPanel.cpp, SModConflictPanel.cpp, SModDependencyPanel.cpp, SModDeveloperWindow.cpp, SModDiagnosticList.cpp, SModExtensionInspectorPanel.cpp, SModInspectorRow.cpp, SModListPanel.cpp, SModPackagePanel.cpp, SModPermissionInspectorPanel.cpp, SModSDKGeneratePanel.cpp, SModSDKPanel.cpp, SModValidationPanel.cpp
+[Adaptive Build] Excluded from ModFrameworkDeveloper unity file: ModFrameworkDeveloperModule.cpp, ModPackageWriter.cpp, ModPublicApiScanner.cpp, ModSDKCommandlet.cpp, ModSDKGenerator.cpp
+[Adaptive Build] Excluded from ModFramework unity file: ModFrameworkModule.cpp, ModAPI.cpp, ModAPIRegistry.cpp, ModConfigManager.cpp, ModConflictDetector.cpp, ModAssetLibrary.cpp, ModContentManager.cpp, ModIconCache.cpp, ModLooseContentMounter.cpp, ModPakContentMounter.cpp, ModFrameworkTypes.cpp, ModFrameworkVersion.cpp, ModConsoleCommands.cpp, ModDependencyResolver.cpp, ModEventBus.cpp, ModEventTypes.cpp, ModContentBundle.cpp, ModExtension.cpp, ModExtensionRegistry.cpp, ModManifest.cpp, ModManifestParser.cpp, ModVersion.cpp, ModNetworkStatics.cpp, ModNetworkValidator.cpp, ModSessionManifest.cpp, ModPackageFormat.cpp, ModPermissionRegistry.cpp, ModPermissions.cpp, LocalFileModProvider.cpp, ModRegistry.cpp, ModContext.cpp, ModEntryPointBase.cpp, ModSaveDataManager.cpp, ModSaveGame.cpp, ModFrameworkSettings.cpp, ModSubsystem.cpp, ModDependencyTests.spec.cpp, ModLifecycleTests.spec.cpp, ModManifestTests.spec.cpp, ModSystemsTests.spec.cpp
+=================================
+Using Unreal Build Accelerator local executor to run 97 action(s)
+  CPU 8 physical cores, 16 logical cores
+  Memory 63.68 GB physical, 22.4 GB/87.68 GB committed
+  UBA Storage capacity 40 GB
+[1/97] Compile [x64] ModContentBundle.cpp
+[2/97] Compile [x64] ModAPI.cpp
+[3/97] Compile [x64] ModConflictDetector.cpp
+[4/97] Compile [x64] ModAPIRegistry.cpp
+[5/97] Compile [x64] LocalFileModProvider.cpp
+[6/97] Compile [x64] ModAssetLibrary.cpp
+[7/97] Compile [x64] ModConfigManager.cpp
+[8/97] Compile [x64] ModConsoleCommands.cpp
+[9/97] Compile [x64] ModEventTypes.cpp
+[10/97] Compile [x64] ModEntryPointBase.cpp
+[11/97] Compile [x64] ModExtension.cpp
+[12/97] Compile [x64] ModContentManager.cpp
+[13/97] Compile [x64] ModEventBus.cpp
+[14/97] Compile [x64] ModContext.cpp
+[15/97] Compile [x64] ModDependencyResolver.cpp
+[16/97] Compile [x64] ModDependencyTests.spec.cpp
+[17/97] Compile [x64] ModFrameworkModule.cpp
+[18/97] Compile [x64] ModFrameworkSettings.cpp
+[19/97] Compile [x64] ModFrameworkTypes.cpp
+[20/97] Compile [x64] ModFrameworkVersion.cpp
+[21/97] Compile [x64] ModExtensionRegistry.cpp
+[22/97] Compile [x64] ModLooseContentMounter.cpp
+[23/97] Compile [x64] ModIconCache.cpp
+[24/97] Compile [x64] ModManifest.cpp
+[25/97] Compile [x64] ModNetworkValidator.cpp
+[26/97] Compile [x64] ModLifecycleTests.spec.cpp
+[27/97] Compile [x64] ModNetworkStatics.cpp
+[28/97] Compile [x64] ModManifestParser.cpp
+[29/97] Compile [x64] ModManifestTests.spec.cpp
+[30/97] Compile [x64] ModPackageFormat.cpp
+[31/97] Compile [x64] ModPakContentMounter.cpp
+[32/97] Compile [x64] ModPermissionRegistry.cpp
+[33/97] Compile [x64] ModPermissions.cpp
+[34/97] Compile [x64] ModRegistry.cpp
+[35/97] Compile [x64] ModSaveGame.cpp
+[36/97] Compile [x64] ModSessionManifest.cpp
+[37/97] Compile [x64] ModSaveDataManager.cpp
+[38/97] Compile [x64] ModVersion.cpp
+[39/97] Compile [x64] ModFrameworkDeveloperModule.cpp
+[40/97] Compile [x64] ModSubsystem.cpp
+[41/97] Compile [x64] ModPackageWriter.cpp
+[42/97] Compile [x64] ModSystemsTests.spec.cpp
+[43/97] Compile [x64] ModSDKCommandlet.cpp
+[44/97] Compile [x64] Module.ModFrameworkDeveloper.cpp
+[45/97] Compile [x64] Module.ModFramework.cpp
+[46/97] Compile [x64] GameCombatModAPI.cpp
+[47/97] Compile [x64] ModPublicApiScanner.cpp
+[48/97] Compile [x64] ModSDKGenerator.cpp
+[49/97] Link [x64] UnrealEditor-ModFrameworkDeveloper.lib
+[50/97] Link [x64] UnrealEditor-ModFramework.lib
+[51/97] Compile [x64] GameEnemyDefinition.cpp
+[52/97] Compile [x64] GameEnemyExtension.cpp
+[53/97] Compile [x64] GameModEvents.cpp
+[54/97] Compile [x64] GameModSDKExtensionPoints.cpp
+[55/97] Compile [x64] GameModSDKModule.cpp
+[56/97] Compile [x64] GameModSDKVersion.cpp
+[57/97] Compile [x64] GameRuleExtension.cpp
+[58/97] Compile [x64] GameUIModAPI.cpp
+[59/97] Compile [x64] GameModValidator.cpp
+[60/97] Compile [x64] GameWeaponDefinition.cpp
+[61/97] Compile [x64] GameUIExtension.cpp
+[62/97] Compile [x64] GameWeaponExtension.cpp
+[63/97] Compile [x64] GameWorldModAPI.cpp
+[64/97] Compile [x64] ModDeveloperUI.cpp
+[65/97] Compile [x64] Module.GameModSDK.cpp
+[66/97] Compile [x64] ModEditorCommands.cpp
+[67/97] Link [x64] UnrealEditor-GameModSDK.lib
+[68/97] Compile [x64] ModDeveloperWindow.cpp
+[69/97] Compile [x64] ModDeveloperModel.cpp
+[70/97] Compile [x64] ModFrameworkEditorModule.cpp
+[71/97] Compile [x64] ModPackagingSettings.cpp
+[72/97] Compile [x64] ModSDKWindow.cpp
+[73/97] Compile [x64] Module.ModFrameworkEditor.cpp
+[74/97] Compile [x64] ModSDKWidgetUtils.cpp
+[75/97] Compile [x64] SModDeveloperWindow.cpp
+[76/97] Compile [x64] SModConflictPanel.cpp
+[77/97] Compile [x64] SModApiInspectorPanel.cpp
+[78/97] Compile [x64] SModDependencyPanel.cpp
+[79/97] Compile [x64] SModInspectorRow.cpp
+[80/97] Compile [x64] SModDiagnosticList.cpp
+[81/97] Compile Resource [x64] Default.rc2
+[82/97] Link [x64] UnrealEditor-GameModSDK.dll
+[83/97] Compile Resource [x64] Default.rc2
+[84/97] Compile [x64] SModExtensionInspectorPanel.cpp
+[85/97] Compile Resource [x64] Default.rc2
+[86/97] Compile Resource [x64] Default.rc2
+[87/97] Link [x64] UnrealEditor-ModFrameworkDeveloper.dll
+[88/97] Compile [x64] SModListPanel.cpp
+[89/97] Link [x64] UnrealEditor-ModFramework.dll
+[90/97] Compile [x64] SModSDKGeneratePanel.cpp
+[91/97] Compile [x64] SModPackagePanel.cpp
+[92/97] Compile [x64] SModSDKPanel.cpp
+[93/97] Compile [x64] SModValidationPanel.cpp
+[94/97] Compile [x64] SModPermissionInspectorPanel.cpp
+[95/97] Link [x64] UnrealEditor-ModFrameworkEditor.lib
+[96/97] Link [x64] UnrealEditor-ModFrameworkEditor.dll
+[97/97] WriteMetadata ModAuthorSampleEditor.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 37.85 seconds
+Output binary: F:\SelfProjects\Unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe
+
+Result: Succeeded
+Total execution time: 41.87 seconds
+Trace written to file C:\Users\aydan\AppData\Local\UnrealBuildTool\Trace.uba with size 31.3kb

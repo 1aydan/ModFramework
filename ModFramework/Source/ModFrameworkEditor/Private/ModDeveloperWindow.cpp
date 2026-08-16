@@ -2,15 +2,13 @@
 
 #include "ModDeveloperWindow.h"
 
-#include "ModFrameworkEditorModule.h"
-
 #include "Framework/Docking/TabManager.h"
-#include "Misc/CommandLine.h"
 #include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SModDeveloperWindow.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "FModDeveloperWindow"
 
@@ -29,8 +27,14 @@ void FModDeveloperWindow::Register()
 		->RegisterNomadTabSpawner(TabId, FOnSpawnTab::CreateStatic(&FModDeveloperWindow::SpawnTab))
 		.SetDisplayName(LOCTEXT("TabTitle", "Mod Developer"))
 		.SetTooltipText(LOCTEXT("TabTooltip", "Inspect, validate and package mods."))
-		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Settings")))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Package")))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+
+	// No Tools menu entry is added here on purpose. FModSDKWindow::Register owns the single
+	// "Mod Framework" section and files this window's entry into it alongside its own, so the two
+	// windows cannot end up in two separately-labelled sections whose order depends on which startup
+	// callback fired first. The tab is independently reachable through Window > Tools via the
+	// workspace group set above, so the menu is a convenience rather than the only route in.
 }
 
 void FModDeveloperWindow::Unregister()
@@ -40,6 +44,8 @@ void FModDeveloperWindow::Unregister()
 		return;
 	}
 
+	// Nothing to withdraw from UToolMenus here: FModSDKWindow::Unregister drops the whole
+	// "Mod Framework" section, including this window's entry, under its own menu owner.
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TabId);
 }
 
@@ -53,33 +59,12 @@ void FModDeveloperWindow::Open()
 	FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 }
 
-TSharedRef<SDockTab> FModDeveloperWindow::SpawnTab(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FModDeveloperWindow::SpawnTab(const FSpawnTabArgs& /*Args*/)
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		[
-			SNew(SBorder)
-			.Padding(12.0f)
-			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Placeholder", "Mod Developer"))
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 8.0f, 0.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.AutoWrapText(true)
-					.Text(LOCTEXT("PlaceholderDetail",
-						"Tooling is not implemented yet. Use the Mod.* console commands for now - "
-						"see docs/ConsoleCommands.md."))
-				]
-			]
+			SNew(SModDeveloperWindow)
 		];
 }
 

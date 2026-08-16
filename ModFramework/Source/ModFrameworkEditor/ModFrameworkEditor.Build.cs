@@ -70,7 +70,12 @@ public class ModFrameworkEditor : ModuleRules
 				"Json",
 
 				// FJsonObjectConverter for USTRUCT <-> JSON in the manifest editor.
-				"JsonUtilities"
+				"JsonUtilities",
+
+				// UDeveloperSettings, the base class of UModPackagingSettings. It already arrives
+				// transitively through ModFramework, but this module derives from it directly now, so
+				// the dependency is stated rather than inherited.
+				"DeveloperSettings"
 			});
 	}
 }

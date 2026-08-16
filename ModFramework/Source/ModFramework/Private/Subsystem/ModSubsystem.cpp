@@ -29,6 +29,7 @@
 #include "Registry/ModRegistry.h"
 #include "Runtime/ModContext.h"
 #include "Runtime/ModEntryPointBase.h"
+#include "Config/ModConfigManager.h"
 #include "Save/ModSaveDataManager.h"
 #include "Settings/ModFrameworkSettings.h"
 #include "Templates/Casts.h"
@@ -184,6 +185,12 @@ void UModSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		SaveDataManager->Initialize(this);
 	}
 
+	ConfigManager = NewObject<UModConfigManager>(this, TEXT("ModConfigManager"));
+	if (ConfigManager)
+	{
+		ConfigManager->Initialize(this);
+	}
+
 	IconCache = NewObject<UModIconCache>(this, TEXT("ModIconCache"));
 	if (IconCache)
 	{
@@ -312,6 +319,12 @@ void UModSubsystem::Deinitialize()
 	{
 		SaveDataManager->Shutdown();
 		SaveDataManager = nullptr;
+	}
+
+	if (ConfigManager)
+	{
+		ConfigManager->Shutdown();
+		ConfigManager = nullptr;
 	}
 
 	if (EventBus)
@@ -1035,6 +1048,20 @@ bool UModSubsystem::LoadMod(FModId ModId)
 	if (!Registry->SetModState(ModId, EModState::Loading))
 	{
 		return false;
+	}
+
+	// Config is loaded before the entry point runs: OnModLoaded is the natural place for a mod to
+	// read its settings, so they have to be there already. A config failure is never fatal - a mod
+	// with a broken config file still loads and falls back to its shipped defaults.
+	if (ConfigManager)
+	{
+		const FModInfo* ConfigModInfo = Registry->FindMod(ModId);
+		TArray<FModDiagnostic> ConfigDiagnostics;
+		ConfigManager->LoadConfig(ModId, ConfigModInfo ? ConfigModInfo->RootPath : FString(), ConfigDiagnostics);
+		for (const FModDiagnostic& Diagnostic : ConfigDiagnostics)
+		{
+			Registry->AddDiagnostic(ModId, Diagnostic);
+		}
 	}
 
 	// The context exists before the entry point does, because the entry point is handed one.
@@ -1933,6 +1960,11 @@ UModSaveDataManager* UModSubsystem::GetSaveDataManager() const
 	return SaveDataManager;
 }
 
+UModConfigManager* UModSubsystem::GetConfigManager() const
+{
+	return ConfigManager;
+}
+
 UModIconCache* UModSubsystem::GetIconCache() const
 {
 	return IconCache;
@@ -2311,6 +2343,15 @@ void UModSubsystem::ReleaseModLoadState(const FModId& ModId)
 	EntryPoints.Remove(ModId);
 	ModContexts.Remove(ModId);
 	AppliedBundles.Remove(ModId);
+
+	// Persist before dropping the store: a mod that changed settings during its run should not lose
+	// them because it was unloaded rather than the game being closed. Saving an untouched store is a
+	// harmless rewrite of identical content.
+	if (ConfigManager)
+	{
+		ConfigManager->SaveConfig(ModId);
+		ConfigManager->UnloadConfig(ModId);
+	}
 
 	if (Registry)
 	{

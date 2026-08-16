@@ -195,6 +195,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mod|Save")
 	bool LoadJson(FString& OutJson, int32& OutDataVersion) const;
 
+	/**
+	 * Configuration - shipped defaults from this mod's Config/ folder, overlaid with values the
+	 * player (or this mod) has changed. Reads fall through to the default, so a mod update can add
+	 * settings without disturbing existing player edits.
+	 *
+	 * Scoped to this mod: a mod cannot read or write another mod's configuration, and the config
+	 * path is never supplied by the mod, so it cannot escape its own namespace.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Mod|Config") bool GetConfigBool(FName Key, bool DefaultValue = false) const;
+	UFUNCTION(BlueprintPure, Category = "Mod|Config") int32 GetConfigInt(FName Key, int32 DefaultValue = 0) const;
+	UFUNCTION(BlueprintPure, Category = "Mod|Config") float GetConfigFloat(FName Key, float DefaultValue = 0.0f) const;
+	UFUNCTION(BlueprintPure, Category = "Mod|Config") FString GetConfigString(FName Key, const FString& DefaultValue = TEXT("")) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Mod|Config") void SetConfigBool(FName Key, bool Value);
+	UFUNCTION(BlueprintCallable, Category = "Mod|Config") void SetConfigInt(FName Key, int32 Value);
+	UFUNCTION(BlueprintCallable, Category = "Mod|Config") void SetConfigFloat(FName Key, float Value);
+	UFUNCTION(BlueprintCallable, Category = "Mod|Config") void SetConfigString(FName Key, const FString& Value);
+
+	/** Persists this mod's changed values. Shipped defaults are never written back. */
+	UFUNCTION(BlueprintCallable, Category = "Mod|Config") bool SaveConfig();
+	UFUNCTION(BlueprintPure, Category = "Mod|Config") TArray<FName> GetConfigKeys() const;
+
 	// --- Content -------------------------------------------------------------------------------
 
 	/**

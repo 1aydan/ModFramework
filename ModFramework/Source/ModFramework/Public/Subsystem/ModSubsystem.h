@@ -39,6 +39,7 @@ class UModIconCache;
 class UModPermissionRegistry;
 class UModRegistry;
 class UModSaveDataManager;
+class UModConfigManager;
 class UWorld;
 
 /** Blueprint-facing mirror of UModRegistry::OnModStateChanged. */
@@ -315,6 +316,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Mod")
 	UModSaveDataManager* GetSaveDataManager() const;
 
+	/** Per-mod configuration: shipped defaults overlaid with player-editable values. */
+	UFUNCTION(BlueprintPure, Category = "Mod")
+	UModConfigManager* GetConfigManager() const;
+
 	/** The mod icon cache, for mod-browser UI and the `Mod.Icons` console command. */
 	UFUNCTION(BlueprintPure, Category = "Mod")
 	UModIconCache* GetIconCache() const;
@@ -447,6 +452,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UModSaveDataManager> SaveDataManager;
+
+	UPROPERTY()
+	TObjectPtr<UModConfigManager> ConfigManager;
 
 	UPROPERTY()
 	TObjectPtr<UModIconCache> IconCache;

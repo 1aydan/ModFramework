@@ -12,6 +12,7 @@
 #if WITH_EDITOR
 #include "ModDeveloperWindow.h"
 #include "ModEditorCommands.h"
+#include "ModSDKWindow.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogModFrameworkEditor);
@@ -25,14 +26,21 @@ void FModFrameworkEditorModule::StartupModule()
 	// registering, so the command set has to exist by then.
 	FModEditorCommands::Register();
 	FModDeveloperWindow::Register();
+
+	// The SDK window registers its own tab spawner *and* the shared "Mod Framework" menu section that
+	// carries the entries for both windows, so it has to come after the developer window's spawner
+	// exists - its menu entry invokes that tab.
+	FModSDKWindow::Register();
 #endif
 }
 
 void FModFrameworkEditorModule::ShutdownModule()
 {
 #if WITH_EDITOR
-	// Reverse order of StartupModule: drop the window (and the bindings it holds) before the
-	// commands those bindings point at go away.
+	// Reverse order of StartupModule: drop the windows (and the bindings they hold) before the
+	// commands those bindings point at go away. The SDK window goes first because it owns the menu
+	// section whose entries invoke the developer window's tab.
+	FModSDKWindow::Unregister();
 	FModDeveloperWindow::Unregister();
 	FModEditorCommands::Unregister();
 #endif

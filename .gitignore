@@ -31,7 +31,7 @@ Build/
 *.mod
 
 # Created by Setup.ps1 — junctions into the sibling plugin folders, never committed
-/Templates/ModFrameworkSample/Plugins/
+/Templates/*/Plugins/
 
 # OS cruft
 Thumbs.db

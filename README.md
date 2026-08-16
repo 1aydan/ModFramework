@@ -45,10 +45,23 @@ ModFramework/                      repo root
 │       ├── ModFrameworkDeveloper/ packaging, validation, SDK generation
 │       └── ModFrameworkEditor/    Mod Developer window, SDK generation UI
 ├── GameModSDK/                    the reference SDK plugin
-├── Templates/ModFrameworkSample/  sample game (UE5 Third Person + Combat variant)
-│   └── Mods/ExampleMod/           a mod, in a default discovery directory
+├── Templates/
+│   ├── ModFrameworkSample/        THE GAME — installs the framework, defines its modding surface
+│   │   ├── Modding/               registers the game's APIs and extension points
+│   │   └── Mods/                  a default mod discovery directory
+│   └── ModAuthorSample/           THE MOD AUTHOR — has the SDK and nothing else
+│       └── Mod/                   the mod folder that gets packaged into a .mod
 ├── docs/
 └── Setup.ps1
+```
+
+The two sample projects exist to show **both sides of the boundary**, and the second one is load
+bearing: it enables `ModFramework` and `GameModSDK` and has no reference to the game module at all.
+Every other build here has the game present, so a leak from the SDK into game code compiles fine and
+stays invisible until a mod author hits it. This turns that into a build failure:
+
+```powershell
+./.dev/check-sdk-boundary.ps1
 ```
 
 ## Getting started
@@ -130,9 +143,21 @@ drop it into the game, and have it discovered, loaded and activated.
 - [ ] Automated tests
 - [ ] Working example mod in the sample game
 
-Deliberately **not** in the MVP: Lua scripting, native C++ mods, Steam Workshop integration. Each
-needs the lifecycle, SDK boundary and mounting to be stable first, and native code in particular
-needs ABI, signing and revocation answers that are distribution problems rather than framework ones.
+Deliberately **not** in the MVP: scripting, native C++ mods, Steam Workshop integration. Each needs
+the lifecycle, SDK boundary and mounting to be stable first.
+
+**Scripting** — the seam exists (`IModScriptRuntime`), no runtime ships. Lua is the intended first
+implementation: zero engine coupling, the lingua franca of game modding, and the first path where
+permissions become *enforceable* rather than advisory, since a VM sees only what is bound.
+`LoadScript` takes bytes rather than a string so a bytecode or WASM runtime fits the same interface,
+and runtimes register rather than being a singleton, so adding a second later breaks no existing mod.
+
+**Native C++ mods** are unlikely to be enabled, and the reason is worth knowing before planning
+around them. UE rejects any module whose BuildId mismatches, and a studio with a *modified* engine
+has a different ABI entirely — a mod built against stock UE would corrupt memory rather than fail
+cleanly. Enabling them means distributing your whole custom engine, which console NDAs often make
+illegal. The manifest field and permission exist; nothing loads them. See
+[Security.md](docs/Security.md).
 
 ## Licence
 

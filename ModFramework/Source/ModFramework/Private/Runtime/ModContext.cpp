@@ -4,6 +4,7 @@
 
 #include "API/ModAPIRegistry.h"
 #include "AssetRegistry/AssetData.h"
+#include "Config/ModConfigManager.h"
 #include "Containers/Array.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
@@ -573,6 +574,76 @@ bool UModContext::SaveJson(const FString& Json, int32 DataVersion)
 	// floor, and the record is keyed by this context's mod id, so a mod can only ever write its own.
 	return SaveDataManager->WriteModJson(ModId, Json, DataVersion);
 }
+
+// Every config call resolves the manager the same way and fails closed. The macro keeps that
+// uniform: a variant that silently skipped the null check would be a crash on a torn-down context.
+#define MODCONTEXT_RESOLVE_CONFIG(FunctionName, FailureResult)                        \
+	UModSubsystem* ResolvedSubsystem = ResolveSubsystem(TEXT(FunctionName));          \
+	if (!ResolvedSubsystem) { return FailureResult; }                                 \
+	UModConfigManager* Config = ResolvedSubsystem->GetConfigManager();                \
+	if (!Config) { return FailureResult; }
+
+bool UModContext::GetConfigBool(FName Key, bool DefaultValue) const
+{
+	MODCONTEXT_RESOLVE_CONFIG("GetConfigBool", DefaultValue)
+	return Config->GetBool(ModId, Key, DefaultValue);
+}
+
+int32 UModContext::GetConfigInt(FName Key, int32 DefaultValue) const
+{
+	MODCONTEXT_RESOLVE_CONFIG("GetConfigInt", DefaultValue)
+	return Config->GetInt(ModId, Key, DefaultValue);
+}
+
+float UModContext::GetConfigFloat(FName Key, float DefaultValue) const
+{
+	MODCONTEXT_RESOLVE_CONFIG("GetConfigFloat", DefaultValue)
+	return Config->GetFloat(ModId, Key, DefaultValue);
+}
+
+FString UModContext::GetConfigString(FName Key, const FString& DefaultValue) const
+{
+	MODCONTEXT_RESOLVE_CONFIG("GetConfigString", DefaultValue)
+	return Config->GetString(ModId, Key, DefaultValue);
+}
+
+void UModContext::SetConfigBool(FName Key, bool Value)
+{
+	MODCONTEXT_RESOLVE_CONFIG("SetConfigBool", )
+	Config->SetBool(ModId, Key, Value);
+}
+
+void UModContext::SetConfigInt(FName Key, int32 Value)
+{
+	MODCONTEXT_RESOLVE_CONFIG("SetConfigInt", )
+	Config->SetInt(ModId, Key, Value);
+}
+
+void UModContext::SetConfigFloat(FName Key, float Value)
+{
+	MODCONTEXT_RESOLVE_CONFIG("SetConfigFloat", )
+	Config->SetFloat(ModId, Key, Value);
+}
+
+void UModContext::SetConfigString(FName Key, const FString& Value)
+{
+	MODCONTEXT_RESOLVE_CONFIG("SetConfigString", )
+	Config->SetString(ModId, Key, Value);
+}
+
+bool UModContext::SaveConfig()
+{
+	MODCONTEXT_RESOLVE_CONFIG("SaveConfig", false)
+	return Config->SaveConfig(ModId);
+}
+
+TArray<FName> UModContext::GetConfigKeys() const
+{
+	MODCONTEXT_RESOLVE_CONFIG("GetConfigKeys", TArray<FName>())
+	return Config->GetKeys(ModId);
+}
+
+#undef MODCONTEXT_RESOLVE_CONFIG
 
 bool UModContext::LoadJson(FString& OutJson, int32& OutDataVersion) const
 {
