@@ -70,14 +70,25 @@ $Summary  = $Results | Where-Object { $_ -match "Test Completed|tests? (ran|pass
 Write-Host "=== exit $($Process.ExitCode) ==="
 if ($Summary) { $Summary }
 
+# "No failures" is only meaningful if tests actually ran. An empty automation log means the
+# controller never engaged - a wrong filter, a mangled -ExecCmds, a missing module - and reporting
+# that as success is worse than reporting a failure, because it looks like passing coverage.
+if ($Results.Count -eq 0)
+{
+	Write-Host ""
+	Write-Host "NO TESTS RAN. The automation controller produced no output at all." -ForegroundColor Red
+	Write-Host "This is NOT a pass. Check the filter ('$Filter') and that the log below mentions automation:"
+	Write-Host "  $Log"
+	exit 1
+}
+
 if ($Failures)
 {
 	Write-Host ""
 	Write-Host "=== $($Failures.Count) failure lines ===" -ForegroundColor Red
 	$Failures | Select-Object -First 40
+	exit 1
 }
-else
-{
-	Write-Host ""
-	Write-Host "No automation failures reported." -ForegroundColor Green
-}
+
+Write-Host ""
+Write-Host "$($Results.Count) automation lines, no failures." -ForegroundColor Green

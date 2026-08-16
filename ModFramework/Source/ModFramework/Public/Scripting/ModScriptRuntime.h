@@ -37,7 +37,19 @@ class UModContext;
  * interface deliberately does not assume a source-text interpreter, so a WASM runtime could
  * implement it: LoadScript takes bytes, not a string.
  */
-class MODFRAMEWORK_API IModScriptRuntime
+/**
+ * DELIBERATELY NOT MODFRAMEWORK_API, unlike this framework's other interfaces.
+ *
+ * Every member here is pure virtual or inline, and the class comment above says an implementation
+ * never ships with the framework - so nothing inside ModFramework ever constructs one. On MSVC a
+ * dllexported class whose implicit constructor and destructor are never emitted exports no such
+ * symbols, while a *consumer* in another module sees them as dllimport and refuses to generate its
+ * own. The result is that the first person to implement this interface - which is the only way it
+ * is ever used - gets two unresolved externals for functions that do nothing. Without the macro
+ * they are generated inline in each implementing module, which is what a header-only interface
+ * wants (IModuleInterface is declared the same way). Do not "restore" it for consistency.
+ */
+class IModScriptRuntime
 {
 public:
 	virtual ~IModScriptRuntime() = default;

@@ -8,12 +8,19 @@ about it assumes Steam Workshop, or any other distribution channel.
 ```
 BrutalCombat/
 ├── mod.json              the manifest — required, at the root
-├── Icon.png              optional, shown in mod browsers
+├── Icon.png              optional, read without mounting or extracting
 ├── Content/
 │   └── BrutalCombat.pak  cooked content
-├── Config/               optional
+├── Scripts/              optional — plain text, listed in entryPoint.scripts
+│   └── main.lua
+├── Config/               optional — shipped defaults, see Permissions/config
 └── Localization/         optional
 ```
+
+`Scripts/` is a convention, not a rule — the manifest names each script explicitly, so the folder can
+be called anything. Keeping it conventional matters for a different reason: scripts are **text**, so
+they diff, review and patch cleanly, and a curator or player can read exactly what a mod does before
+installing it. That is a property no other mod content has.
 
 ## Cooking content
 

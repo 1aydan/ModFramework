@@ -30,6 +30,11 @@
 			"Name": "ModFrameworkEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModFrameworkLua",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }

@@ -23,7 +23,9 @@
 
 	"entryPoint": {
 		"class": "/BrutalCombat/BP_BrutalCombatEntry.BP_BrutalCombatEntry_C",
-		"contentBundles": ["/BrutalCombat/DA_BrutalCombatBundle.DA_BrutalCombatBundle"]
+		"contentBundles": ["/BrutalCombat/DA_BrutalCombatBundle.DA_BrutalCombatBundle"],
+		"scriptRuntime": "lua",
+		"scripts": ["Scripts/main.lua"]
 	},
 
 	"content": [

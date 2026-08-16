@@ -176,10 +176,28 @@ auto-granted. See [Permissions.md](Permissions.md).
 |---|---|---|
 | `entryPoint.class` | object path | A Blueprint or native class deriving from `UModEntryPointBase`. Note the `_C` suffix for Blueprint classes. |
 | `entryPoint.contentBundles` | object path[] | `UModContentBundle` assets whose extensions register on activation. |
+| `entryPoint.scriptRuntime` | string | Which script runtime to use, e.g. `"lua"`. Omit for no scripting. |
+| `entryPoint.scripts` | path[] | Scripts relative to the mod root, **loaded in the order listed**. |
 | `entryPoint.nativeModule` | string | Advanced. Not loaded by the MVP; see [Security.md](Security.md). |
 
-All three are optional. A mod with only `content` and no entry point is legal — that is the
-pure-asset case.
+All are optional. A mod with only `content` and no entry point is legal — that is the pure-asset
+case. A mod may combine them: Blueprint extensions *and* scripts is normal.
+
+```json
+"entryPoint": {
+	"class": "/BrutalCombat/BP_BrutalCombatEntry.BP_BrutalCombatEntry_C",
+	"contentBundles": ["/BrutalCombat/DA_BrutalCombatBundle.DA_BrutalCombatBundle"],
+	"scriptRuntime": "lua",
+	"scripts": ["Scripts/main.lua"]
+}
+```
+
+Script paths follow the same containment rules as content roots — absolute paths and `..` segments
+are rejected (`Manifest.InvalidScript`), and an extension no registered runtime claims is an error
+rather than a silent skip. Scripts load **after** the mod's context exists but **before** its entry
+point class runs, so a Blueprint entry point can rely on script-registered state.
+
+See [Scripting.md](Scripting.md) for what a script can actually do.
 
 ### Content roots
 
