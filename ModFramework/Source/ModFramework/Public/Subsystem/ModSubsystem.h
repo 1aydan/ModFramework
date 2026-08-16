@@ -40,6 +40,7 @@ class UModPermissionRegistry;
 class UModRegistry;
 class UModSaveDataManager;
 class UModConfigManager;
+class UModScriptManager;
 class UWorld;
 
 /** Blueprint-facing mirror of UModRegistry::OnModStateChanged. */
@@ -320,6 +321,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Mod")
 	UModConfigManager* GetConfigManager() const;
 
+	/** The script runtime registry, and the thing that runs a mod's scripts. Never names a language. */
+	UFUNCTION(BlueprintPure, Category = "Mod")
+	UModScriptManager* GetScriptManager() const;
+
 	/** The mod icon cache, for mod-browser UI and the `Mod.Icons` console command. */
 	UFUNCTION(BlueprintPure, Category = "Mod")
 	UModIconCache* GetIconCache() const;
@@ -455,6 +460,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UModConfigManager> ConfigManager;
+
+	UPROPERTY()
+	TObjectPtr<UModScriptManager> ScriptManager;
 
 	UPROPERTY()
 	TObjectPtr<UModIconCache> IconCache;

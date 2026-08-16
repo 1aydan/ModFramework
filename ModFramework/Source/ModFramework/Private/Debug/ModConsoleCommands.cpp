@@ -45,6 +45,8 @@
 #include "Permissions/ModPermissions.h"
 #include "Registry/ModInfo.h"
 #include "Registry/ModRegistry.h"
+#include "Scripting/ModScriptManager.h"
+#include "Scripting/ModScriptRuntime.h"
 #include "Settings/ModFrameworkSettings.h"
 #include "Subsystem/ModSubsystem.h"
 #include "Templates/SubclassOf.h"
@@ -2298,6 +2300,156 @@ namespace ModConsoleCommandsPrivate
 		Emit(&Ar, TEXT("  Use 'Mod.Icons load <ModId>' to force one icon through the blocking loader and see why it failed."));
 	}
 
+	// --- Mod.Scripts -----------------------------------------------------------------------------
+
+	/** ".lua, .luau" for one runtime's claimed source extensions. */
+	FString DescribeExtensions(const IModScriptRuntime& Runtime)
+	{
+		const TArray<FString> Extensions = Runtime.GetSourceExtensions();
+		return Extensions.Num() > 0 ? FString::Join(Extensions, TEXT(", ")) : FString(TEXT("-"));
+	}
+
+	/**
+	 * The runtime a mod asked for, flagged when nothing answers to that name.
+	 *
+	 * The flag matters more than it looks: a manifest naming an unregistered runtime is the one way a
+	 * mod can fail with all of its code intact and nothing obviously wrong with it.
+	 */
+	FString DescribeRequestedRuntime(const FModInfo& Info, const UModScriptManager& ScriptManager)
+	{
+		const FName Requested = Info.Manifest.EntryPoint.ScriptRuntime;
+		if (Requested.IsNone())
+		{
+			return FString(TEXT("-"));
+		}
+
+		FString Text = Requested.ToString();
+		if (ScriptManager.FindRuntime(Requested) == nullptr)
+		{
+			Text += TEXT("  <-- not registered");
+		}
+
+		return Text;
+	}
+
+	/** True when the manifest declares any part of a scripting section. */
+	bool DeclaresScripting(const FModInfo& Info)
+	{
+		return !Info.Manifest.EntryPoint.ScriptRuntime.IsNone() || Info.Manifest.EntryPoint.Scripts.Num() > 0;
+	}
+
+	void CmdScripts(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+	{
+		static const TCHAR* CommandName = TEXT("Mod.Scripts");
+
+		UModSubsystem* Subsystem = ResolveSubsystem(World, &Ar, CommandName);
+		if (Subsystem == nullptr)
+		{
+			return;
+		}
+
+		UModRegistry* Registry = ResolveRegistry(Subsystem, &Ar, CommandName);
+		if (Registry == nullptr)
+		{
+			return;
+		}
+
+		UModScriptManager* ScriptManager = Subsystem->GetScriptManager();
+		if (ScriptManager == nullptr)
+		{
+			EmitError(&Ar, TEXT("Mod.Scripts: the script manager does not exist - the subsystem failed to initialise."));
+			return;
+		}
+
+		WarnAboutExtraArgs(Args, 0, &Ar, CommandName);
+
+		// --- The registered runtimes ---------------------------------------------------------
+		const TArray<FName> RuntimeIds = ScriptManager->GetRuntimeIds();
+
+		Emit(&Ar, FString::Printf(TEXT("Mod.Scripts: %d registered runtime(s)."), RuntimeIds.Num()));
+
+		if (RuntimeIds.Num() == 0)
+		{
+			EmitWarning(&Ar, TEXT("  No script runtime is registered, so any mod naming one will fail to load."));
+			Emit(&Ar, TEXT("  Enable a scripting module (ModFrameworkLua ships with the framework), or register your own"));
+			Emit(&Ar, TEXT("  IModScriptRuntime through UModScriptManager::RegisterRuntimeFactory from your module's StartupModule."));
+		}
+		else
+		{
+			FTableWriter Runtimes(TEXT("  "), {
+				TEXT("RUNTIME"), TEXT("VERSION"), TEXT("HOT RELOAD"), TEXT("LIMITS"), TEXT("CONTEXTS"), TEXT("EXTENSIONS") });
+
+			for (const FName& RuntimeId : RuntimeIds)
+			{
+				const IModScriptRuntime* Runtime = ScriptManager->FindRuntime(RuntimeId);
+				if (Runtime == nullptr)
+				{
+					continue;
+				}
+
+				int32 LiveContexts = 0;
+				for (const FModId& ScriptedMod : ScriptManager->GetScriptedMods())
+				{
+					LiveContexts += ScriptManager->GetModRuntimeId(ScriptedMod) == RuntimeId ? 1 : 0;
+				}
+
+				Runtimes.AddRow({
+					RuntimeId.ToString(),
+					Runtime->GetRuntimeVersion().ToString(),
+					YesNo(Runtime->SupportsHotReload()),
+					YesNo(Runtime->SupportsResourceLimits()),
+					FString::FromInt(LiveContexts),
+					DescribeExtensions(*Runtime) });
+			}
+
+			Runtimes.Flush(&Ar);
+		}
+
+		// --- The mods that ship scripts ------------------------------------------------------
+		const TArray<FModInfo> Mods = Registry->GetAllMods();
+
+		FTableWriter Table(TEXT("  "), {
+			TEXT("MOD"), TEXT("RUNTIME"), TEXT("SCRIPTS"), TEXT("LOADED"), TEXT("STATE"), TEXT("FILES") });
+
+		int32 LoadedCount = 0;
+		for (const FModInfo& Info : Mods)
+		{
+			if (!DeclaresScripting(Info))
+			{
+				continue;
+			}
+
+			const FModId& ModId = Info.GetId();
+			const TArray<FString>& Scripts = Info.Manifest.EntryPoint.Scripts;
+			const bool bLoaded = ScriptManager->AreScriptsLoaded(ModId);
+			LoadedCount += bLoaded ? 1 : 0;
+
+			Table.AddRow({
+				ModId.ToString(),
+				DescribeRequestedRuntime(Info, *ScriptManager),
+				FString::FromInt(Scripts.Num()),
+				YesNo(bLoaded),
+				ModFrameworkEnums::ToString(Info.State),
+				Scripts.Num() > 0 ? FString::Join(Scripts, TEXT(", ")) : FString(TEXT("-")) });
+		}
+
+		EmitBlank(&Ar);
+
+		if (Table.NumRows() == 0)
+		{
+			Emit(&Ar, TEXT("  No registered mod declares any scripting."));
+			return;
+		}
+
+		Emit(&Ar, FString::Printf(TEXT("  %d mod(s) declare scripts, %d with scripts loaded."),
+			Table.NumRows(), LoadedCount));
+		Table.Flush(&Ar);
+
+		// Scripts run between the context being created and the entry point being instantiated, which
+		// is a guarantee mod authors are told about, so the reminder belongs where they will see it.
+		Emit(&Ar, TEXT("  Scripts run after the mod's context exists and before its entry point class is instantiated."));
+	}
+
 	// --- Registration ----------------------------------------------------------------------------
 
 	/** Signature every command body above shares. */
@@ -2348,7 +2500,7 @@ void FModConsoleCommands::Register()
 
 	// NOTHING HERE MAY TOUCH A CDO. The module loads at PostConfigInit, before the UObject system
 	// exists, so UModFrameworkSettings cannot be read until a command actually runs.
-	Commands.Reserve(22);
+	Commands.Reserve(23);
 
 	AddCommand(TEXT("Mod.List"),
 		TEXT("Lists every registered mod. Optional argument filters by state name, mod id or display name."),
@@ -2437,6 +2589,10 @@ void FModConsoleCommands::Register()
 	AddCommand(TEXT("Mod.Icons"),
 		TEXT("Lists which mods ship an icon and which icons are cached. 'Mod.Icons load <ModId>' forces one load."),
 		&CmdIcons);
+
+	AddCommand(TEXT("Mod.Scripts"),
+		TEXT("Lists the registered script runtimes and, for every mod that ships scripts, its runtime, script count and load state."),
+		&CmdScripts);
 
 	UE_LOG(LogModFramework, Verbose, TEXT("Registered %d Mod.* console command(s)."), Commands.Num());
 }

@@ -31,6 +31,7 @@
 #include "Runtime/ModEntryPointBase.h"
 #include "Config/ModConfigManager.h"
 #include "Save/ModSaveDataManager.h"
+#include "Scripting/ModScriptManager.h"
 #include "Settings/ModFrameworkSettings.h"
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
@@ -191,6 +192,14 @@ void UModSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		ConfigManager->Initialize(this);
 	}
 
+	// Initialize builds one runtime per factory a language module registered from its StartupModule.
+	// Nothing here knows which languages those are, and nothing here ever will.
+	ScriptManager = NewObject<UModScriptManager>(this, TEXT("ModScriptManager"));
+	if (ScriptManager)
+	{
+		ScriptManager->Initialize(this);
+	}
+
 	IconCache = NewObject<UModIconCache>(this, TEXT("ModIconCache"));
 	if (IconCache)
 	{
@@ -319,6 +328,14 @@ void UModSubsystem::Deinitialize()
 	{
 		SaveDataManager->Shutdown();
 		SaveDataManager = nullptr;
+	}
+
+	// Before the config manager: a script may hold the mod's config store through its bindings, and
+	// UnloadAllMods above has already destroyed every context that could still be running.
+	if (ScriptManager)
+	{
+		ScriptManager->Shutdown();
+		ScriptManager = nullptr;
 	}
 
 	if (ConfigManager)
@@ -1077,6 +1094,33 @@ bool UModSubsystem::LoadMod(FModId ModId)
 	Registry->TrackModObject(ModId, ModContext);
 	ModContexts.Add(ModId, ModContext);
 
+	// AFTER the context exists and BEFORE the entry point class is instantiated. docs/Scripting.md
+	// states that ordering as a guarantee, so a Blueprint entry point is entitled to rely on state a
+	// script registered - and a script is entitled to a context that is already usable.
+	//
+	// Unlike a content bundle, a broken script is fatal. Scripts are code the author expects to run,
+	// and a mod that loads with half its logic missing is worse than one that refuses to load: it
+	// looks like it works.
+	if (ScriptManager)
+	{
+		TArray<FModDiagnostic> ScriptDiagnostics;
+		const bool bScriptsLoaded = ScriptManager->LoadModScripts(Info, ModContext, ScriptDiagnostics);
+		RecordDiagnostics(ModId, ScriptDiagnostics);
+
+		if (!bScriptsLoaded)
+		{
+			FString Message = SummariseDiagnostics(ScriptDiagnostics);
+			if (Message.IsEmpty())
+			{
+				Message = FString::Printf(TEXT("the scripts of '%s' could not be loaded"), *ModId.ToString());
+			}
+
+			ReleaseModLoadState(ModId);
+			FailMod(ModId, EModLoadFailureReason::EntryPointInvalid, Message);
+			return false;
+		}
+	}
+
 	UModEntryPointBase* EntryPoint = nullptr;
 	const FSoftClassPath& EntryClassPath = Info.Manifest.EntryPoint.EntryClass;
 
@@ -1219,6 +1263,14 @@ bool UModSubsystem::ActivateMod(FModId ModId)
 		return false;
 	}
 
+	// Scripts before the entry point, matching the order LoadMod uses: a Blueprint entry point may
+	// rely on what a script set up, never the other way round. An absent OnModActivated is the normal
+	// case and answers false without complaint.
+	if (ScriptManager)
+	{
+		ScriptManager->CallModFunction(ModId, ModScriptFunctions::OnModActivated);
+	}
+
 	if (UModEntryPointBase* EntryPoint = FindEntryPoint(ModId))
 	{
 		EntryPoint->NativeOnModActivated();
@@ -1259,6 +1311,13 @@ bool UModSubsystem::DeactivateMod(FModId ModId)
 	if (UModEntryPointBase* EntryPoint = FindEntryPoint(ModId))
 	{
 		EntryPoint->NativeOnModDeactivated();
+	}
+
+	// Teardown mirrors startup, so scripts come *after* the entry point here: whatever a script set
+	// up for the entry point stays valid until the entry point has finished with it.
+	if (ScriptManager)
+	{
+		ScriptManager->CallModFunction(ModId, ModScriptFunctions::OnModDeactivated);
 	}
 
 	if (UModExtensionRegistry* ExtensionRegistry = Registry->GetExtensionRegistry())
@@ -1341,7 +1400,8 @@ bool UModSubsystem::UnloadMod(FModId ModId)
 		}
 
 		// Release before unmount, always: a mod object that survives its own content is a pointer into
-		// a package that is about to stop existing.
+		// a package that is about to stop existing. ReleaseModLoadState also destroys the mod's script
+		// contexts, which for the same reason has to happen before UModRegistry::ReleaseModObjects.
 		ReleaseModLoadState(ModId);
 
 		if (EventBus)
@@ -1965,6 +2025,11 @@ UModConfigManager* UModSubsystem::GetConfigManager() const
 	return ConfigManager;
 }
 
+UModScriptManager* UModSubsystem::GetScriptManager() const
+{
+	return ScriptManager;
+}
+
 UModIconCache* UModSubsystem::GetIconCache() const
 {
 	return IconCache;
@@ -2333,7 +2398,18 @@ UModEntryPointBase* UModSubsystem::FindEntryPoint(const FModId& ModId) const
 
 void UModSubsystem::ReleaseModLoadState(const FModId& ModId)
 {
-	// The entry point's back-pointer goes first: the object is about to be marked garbage and a mod
+	// Scripts before anything else, and well before UModRegistry::ReleaseModObjects at the bottom of
+	// this function - the same ordering rule that unwinds the extension and event registries first,
+	// for the same reason. A script VM holds the mod's UModContext as the one thing bound into it,
+	// so releasing the context while a state is still live would leave that state's entire binding
+	// surface pointing at an object marked garbage. Every teardown path reaches here, including the
+	// ones inside LoadMod that never call UnloadMod.
+	if (ScriptManager)
+	{
+		ScriptManager->UnloadModScripts(ModId);
+	}
+
+	// The entry point's back-pointer goes next: the object is about to be marked garbage and a mod
 	// that captured it must not be able to reach a half-released context through it.
 	if (UModEntryPointBase* EntryPoint = FindEntryPoint(ModId))
 	{
