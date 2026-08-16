@@ -1154,6 +1154,11 @@ namespace ModManifestParserPrivate
 				if (ModFrameworkEnums::ParseConflictPolicy(PolicyText, Policy))
 				{
 					Claim.PreferredPolicy = Policy;
+
+					// Only a parsed value counts as authored. A malformed policy already errored
+					// above, and treating it as a preference would let a typo override the game's
+					// configured default rather than being rejected.
+					Claim.bHasPreferredPolicy = true;
 				}
 				else
 				{

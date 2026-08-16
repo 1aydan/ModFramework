@@ -2,6 +2,9 @@
 
 Internal working document. Read this first when resuming work with no prior conversation context.
 
+**Test status: 404 passed, 0 failed** (`Tools/run-tests.ps1`). Run it after any runtime change — it
+found a real conflict-resolution bug the compiler could not.
+
 **Last updated:** 2026-08-16 — **the whole stack compiles clean**, including the sample game with
 its mod integration. 121 C++ files. Verify plugins alone with `Tools/build-harness.ps1`, or the full
 integration with `Tools/build-sample.ps1` (close the editor first — it locks module DLLs).
@@ -117,6 +120,20 @@ documents; they will dangle for anyone who clones.
   `Description` member, and UE builds with warnings-as-errors, so `C4458: declaration of
   'Description' hides class member` fails the build. Use `FailureMessage` or similar. Same applies
   to any other base-class member name — specs inherit a lot.
+- **A default enum value is not an authored choice.** `FModResourceClaim::PreferredPolicy` defaults
+  to `Error`, and the conflict detector's unanimity rule treated "every contender wants the same
+  thing" as authority — so two mods that declared *no* preference counted as unanimously demanding
+  `Error` and silently overrode the game's `DefaultConflictPolicy`. Fixed with a companion
+  `bHasPreferredPolicy` flag on both `FModResourceClaim` and `FModResourceClaimDeclaration`; a claim
+  that did not author a preference now breaks unanimity rather than voting for its default, and a
+  *malformed* policy string does not count as authored either. An `Unspecified` enum member would be
+  cleaner but needs value 0 to be the default, and renumbering is a MAJOR break per `Versioning.md`.
+  **Watch for this shape elsewhere** — any `bool`/enum whose default is indistinguishable from a
+  deliberate setting.
+- **`-ExecCmds=` needs quotes that survive into the child process.** `Tools/run-tests.ps1` silently
+  ran zero tests for a while: PowerShell passed `-ExecCmds=Automation RunTests X`, UE split it on
+  spaces, and `-TestExit` fired on the first log line containing "Automation" — exit 0, nothing run.
+  The script's `NO TESTS RAN` guard is what caught it; keep that guard.
 - **Never name a file-local helper `MakeError`.** `Templates/ValueOrError.h` declares a global
   variadic `MakeError(ArgTypes&&...)` that is an exact match for any argument list. Inside your own
   namespace it resolves fine; at any call site reached via a `using`-directive both land in one
@@ -178,11 +195,12 @@ rather than depending on local editor state. **Not yet done.**
 
 ## Known incomplete
 
-- **Script entry points are documented but not yet wired.** `docs/ManifestFormat.md`,
-  `docs/Scripting.md` and `Templates/ModAuthorSample/Mod/mod.json` all describe
-  `entryPoint.scriptRuntime` / `entryPoint.scripts`, but the parser does not read them and nothing
-  loads them. This is the one place the docs are ahead of the code — deliberately, so the shape was
-  settled before implementation, but it must not stay that way.
+- **No script has actually been executed yet.** The whole path is built and compiles —
+  `UModScriptManager`, the factory registry, `LoadMod` → scripts → entry point ordering,
+  `OnModActivated`/`OnModDeactivated`, `Mod.Scripts` — and `FModFrameworkLuaModule` registers its
+  factory. But nothing has run a `.lua` file in a live game, so treat the Lua path as unverified
+  rather than working. The fastest check: a manifest with `scriptRuntime: "lua"`, one script, and no
+  `entryPoint.class`, dropped in `{Project}/Mods`, then `Mod.Scripts` and `Mod.Activate`.
 - **`IModContentMounter` and `IModSaveMigration` carry a latent link bug.** Both are `MODFRAMEWORK_API`
   header-only interfaces, which is exactly what broke `IModScriptRuntime`: MSVC exports no implicit
   ctor/dtor for a class nothing constructs in-module, while an out-of-module implementer sees them as

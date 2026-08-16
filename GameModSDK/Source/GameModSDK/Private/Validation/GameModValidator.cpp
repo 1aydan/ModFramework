@@ -414,6 +414,11 @@ namespace GameModValidatorPrivate
 		const bool bHasEntryClass = !EntryPoint.EntryClass.IsNull();
 		const bool bHasBundles = EntryPoint.ContentBundles.Num() > 0;
 		const bool bHasNativeModule = !EntryPoint.NativeModule.IsEmpty();
+
+		// Scripts are a registration surface like any other: a Lua script reaches the same
+		// UModContext a Blueprint entry point does, and registers extensions through it. A
+		// script-only mod is a supported and complete shape, so it must not be reported as dead.
+		const bool bHasScripts = EntryPoint.Scripts.Num() > 0;
 		const bool bHasClaims = Manifest.Claims.Num() > 0;
 		const bool bHasPermissions = Manifest.RequestedPermissions.Num() > 0;
 
@@ -436,10 +441,10 @@ namespace GameModValidatorPrivate
 		// The genuinely dead shape: nothing to load, nothing to register, yet the manifest declares
 		// intent. Native modules count as a surface even though the MVP does not load one, because a
 		// manifest naming a native module has told the truth about what it ships.
-		if (!bHasEntryClass && !bHasBundles && !bHasNativeModule && (bHasClaims || bHasPermissions))
+		if (!bHasEntryClass && !bHasBundles && !bHasNativeModule && !bHasScripts && (bHasClaims || bHasPermissions))
 		{
 			Sink.Warning(GameModValidationCodes::NoRuntimeSurface, FString::Printf(
-				TEXT("%s declares %s but has no 'entryPoint.class', no 'entryPoint.contentBundles' and no 'entryPoint.nativeModule', so it can never register anything. It will load, do nothing, and report no error."),
+				TEXT("%s declares %s but has no 'entryPoint.class', no 'entryPoint.contentBundles', no 'entryPoint.scripts' and no 'entryPoint.nativeModule', so it can never register anything. It will load, do nothing, and report no error."),
 				*Who,
 				bHasClaims && bHasPermissions ? TEXT("claims and permissions")
 					: bHasClaims ? TEXT("claims") : TEXT("permissions")),

@@ -414,7 +414,16 @@ TArray<FModConflict> FModConflictDetector::Detect(const TArray<FModResourceClaim
 
 		// Unanimity is a property of every claim on the resource, not of every mod: a mod that
 		// contradicts itself across two extensions cannot impose a preference either.
-		if (!Group.bHasClaim)
+		//
+		// A claim that did not author a preference breaks unanimity outright rather than voting for
+		// its default. Otherwise two mods that said nothing would count as unanimously wanting Error
+		// - PreferredPolicy's default - and would override whatever the game configured, which is
+		// the opposite of what a default is for.
+		if (!Claim.bHasPreferredPolicy)
+		{
+			Group.bPreferenceUnanimous = false;
+		}
+		else if (!Group.bHasClaim)
 		{
 			Group.PreferredPolicy = Claim.PreferredPolicy;
 			Group.bHasClaim = true;

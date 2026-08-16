@@ -252,6 +252,16 @@ namespace ModDependencyTestsPrivate
 		Claim.LoadOrder = InLoadOrder;
 		Claim.Priority = InPriority;
 		Claim.PreferredPolicy = InPreferred;
+
+		// The parameter's own default is Error, which is this fixture's way of saying "this caller
+		// did not express a preference" - so it maps onto bHasPreferredPolicy exactly. A claim that
+		// says nothing must not vote in the unanimity rule, or two silent mods would count as
+		// unanimously demanding Error and override the game's configured default.
+		//
+		// A test that needs a claim which *authored* Error specifically has to set the flag by hand;
+		// there is deliberately no way to express that through this parameter, because every other
+		// caller relying on the default would then silently start voting.
+		Claim.bHasPreferredPolicy = InPreferred != EModConflictPolicy::Error;
 		return Claim;
 	}
 

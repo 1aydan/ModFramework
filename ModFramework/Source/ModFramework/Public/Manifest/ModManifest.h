@@ -164,6 +164,17 @@ struct MODFRAMEWORK_API FModResourceClaimDeclaration
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mod")
 	EModConflictPolicy PreferredPolicy = EModConflictPolicy::Error;
+
+	/**
+	 * Whether the manifest actually wrote a `policy` for this claim.
+	 *
+	 * Carried through to FModResourceClaim::bHasPreferredPolicy, where the unanimity rule needs to
+	 * tell "every mod asked for Error" apart from "no mod asked for anything". Without it, two mods
+	 * that omitted `policy` would silently override the game's configured default. Not serialised -
+	 * it is implied by the presence of the field.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Mod")
+	bool bHasPreferredPolicy = false;
 };
 
 /**

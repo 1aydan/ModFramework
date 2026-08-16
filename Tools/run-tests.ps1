@@ -36,8 +36,12 @@ Remove-Item $Log, $StdOut -ErrorAction SilentlyContinue
 
 $Arguments = @(
 	"`"$Project`""
-	"-ExecCmds=Automation RunTests $Filter"
-	"-TestExit=Automation Test Queue Empty"
+	# The INNER quotes are load-bearing. Without them UE's own command-line parser splits on the
+	# spaces, -ExecCmds collapses to bare "Automation", and -TestExit fires on the first log line
+	# containing that word - so the editor exits 0 having run nothing at all. Quoting the whole
+	# argument in PowerShell is not enough; the quotes have to survive into the child process.
+	"-ExecCmds=`"Automation RunTests $Filter`""
+	"-TestExit=`"Automation Test Queue Empty`""
 	"-ReportExportPath=`"F:\SelfProjects\Unreal\_ModHarness\Saved\AutomationReport`""
 	"-unattended"
 	"-nullrhi"
@@ -63,9 +67,13 @@ if ($Lines.Count -eq 0)
 $Results = $Lines | Select-String -Pattern "LogAutomationController: (Display|Warning|Error):" |
 	ForEach-Object { $_.Line.Trim() }
 
-$Failures = $Results | Where-Object { $_ -match "Fail|Error:" }
-$Summary  = $Results | Where-Object { $_ -match "Test Completed|tests? (ran|passed|failed)|Success|Total" } |
-	Select-Object -Last 8
+# Match the automation controller's own verdict, NOT the word "fail" anywhere in a line. Negative
+# tests deliberately log things like "decode failed" and "MigrationFailed" at Warning level, and a
+# loose pattern reports every one of them as a broken test - which trains you to ignore the output.
+$Passed   = @($Results | Where-Object { $_ -match "Result=\{Success\}" }).Count
+$FailedN  = @($Results | Where-Object { $_ -match "Result=\{Fail\}" }).Count
+$Failures = $Results | Where-Object { $_ -match "Result=\{Fail\}" -or $_ -match "LogAutomationController: Error:" }
+$Summary  = @("$Passed passed, $FailedN failed")
 
 Write-Host "=== exit $($Process.ExitCode) ==="
 if ($Summary) { $Summary }

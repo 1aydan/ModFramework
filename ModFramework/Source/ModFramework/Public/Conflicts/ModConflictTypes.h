@@ -65,6 +65,21 @@ struct MODFRAMEWORK_API FModResourceClaim
 	UPROPERTY(BlueprintReadOnly, Category = "Mod")
 	EModConflictPolicy PreferredPolicy = EModConflictPolicy::Error;
 
+	/**
+	 * Whether PreferredPolicy was actually authored, as opposed to sitting at its default.
+	 *
+	 * This exists because the unanimity rule cannot otherwise tell "every mod asked for Error" apart
+	 * from "no mod asked for anything". EModConflictPolicy has no Unspecified member and cannot gain
+	 * one without renumbering the enum, which docs/Versioning.md calls a MAJOR break - so the fact of
+	 * having expressed a preference is carried alongside the preference itself.
+	 *
+	 * Getting this wrong is not cosmetic: with two silent mods counting as unanimous for Error, a game
+	 * that configured DefaultConflictPolicy = LastWins would have that setting silently ignored and
+	 * both mods blocked. The unanimity rule therefore requires every contender to have set this.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Mod")
+	bool bHasPreferredPolicy = false;
+
 	/** Which extension raised the claim, for diagnostics. NAME_None for a manifest-declared claim. */
 	UPROPERTY(BlueprintReadOnly, Category = "Mod")
 	FName ExtensionId;
