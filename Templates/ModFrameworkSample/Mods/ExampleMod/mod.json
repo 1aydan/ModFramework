@@ -1,0 +1,43 @@
+{
+	"manifestVersion": 1,
+
+	"id": "com.modframework.example.brutalcombat",
+	"name": "Brutal Combat",
+	"description": "Example mod for the ModFramework sample game. Adds a tougher enemy variant and raises melee damage, using only Blueprint and Data Assets — no native C++.",
+	"author": "ModFramework",
+	"license": "MIT",
+	"icon": "Icon.png",
+	"version": "1.0.0",
+
+	"game": { "id": "com.modframework.sample", "version": "*" },
+	"framework": { "version": "^0.1.0" },
+	"sdk": { "id": "com.modframework.sample.sdk", "version": "^0.1.0" },
+
+	"dependencies": [],
+
+	"priority": 0,
+
+	"network": { "scope": "ClientAndServer", "requiredForNetworkPlay": true },
+
+	"permissions": ["assets.read", "gameplay.modify"],
+
+	"entryPoint": {
+		"class": "/BrutalCombat/BP_BrutalCombatEntry.BP_BrutalCombatEntry_C",
+		"contentBundles": ["/BrutalCombat/DA_BrutalCombatBundle.DA_BrutalCombatBundle"]
+	},
+
+	"content": [
+		{
+			"path": "Content",
+			"type": "LooseDirectory",
+			"mountPoint": "/BrutalCombat/",
+			"mountOrder": 0
+		}
+	],
+
+	"claims": [
+		{ "extensionPoint": "game.enemy", "resource": "enemy.grunt", "policy": "Priority" }
+	],
+
+	"metadata": { "category": "Gameplay" }
+}

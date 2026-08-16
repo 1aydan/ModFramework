@@ -1,0 +1,35 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Mod Framework",
+	"Description": "A game-agnostic modding framework for Unreal Engine. Provides mod discovery, JSON manifests, semantic versioning, dependency resolution and deterministic load ordering, a full mod lifecycle, content mounting, API and extension registries, a permission system, mod-isolated save data, multiplayer manifest validation and SDK generation.",
+	"Category": "Modding",
+	"CreatedBy": "Aydan Edwards",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.8.0",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ModFramework",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "ModFrameworkDeveloper",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModFrameworkEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

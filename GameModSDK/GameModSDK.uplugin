@@ -1,0 +1,31 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Game Mod SDK",
+	"Description": "Reference Game Mod SDK for the ModFrameworkSample game. This is the public modding surface a game developer distributes to mod authors: game-specific APIs, extension points, base classes, events and data assets. It depends on ModFramework and exposes no proprietary game implementation. Each real game generates its own SDK from this shape.",
+	"Category": "Modding",
+	"CreatedBy": "Aydan Edwards",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.8.0",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "GameModSDK",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ModFramework",
+			"Enabled": true
+		}
+	]
+}

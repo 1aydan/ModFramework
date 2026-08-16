@@ -1,0 +1,22 @@
+* text=auto eol=lf
+
+# Unreal source and build files
+*.h      text diff=cpp
+*.cpp    text diff=cpp
+*.cs     text diff=csharp
+*.ini    text
+*.json   text
+*.md     text
+*.uplugin text
+*.uproject text
+
+# Unreal binary assets — never diff or merge these
+*.uasset  binary
+*.umap    binary
+*.pak     binary
+*.utoc    binary
+*.ucas    binary
+*.mod     binary
+*.png     binary
+*.jpg     binary
+*.tga     binary

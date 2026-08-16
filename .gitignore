@@ -1,0 +1,39 @@
+# Unreal Engine build artifacts (match at any depth)
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+Build/
+
+# The sample game's stock content — ~135 MB of the UE5 Third Person template, regenerable in a
+# couple of minutes (see Templates/ModFrameworkSample/README.md). Deliberately ANCHORED with a
+# leading slash so it matches only this one directory: the example mod's Blueprint content at
+# Mods/ExampleMod/Content/ and any plugin Content/ folder are real deliverables and must stay
+# tracked. Do not turn this into a bare "Content/".
+/Templates/ModFrameworkSample/Content/
+
+# Generated project files
+.vs/
+.vscode/
+.idea/
+*.sln
+*.slnx
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# Packaged mods and generated SDK bundles (build outputs, not source)
+/Dist/
+*.mod
+
+# Created by Setup.ps1 — junctions into the sibling plugin folders, never committed
+/Templates/ModFrameworkSample/Plugins/
+
+# OS cruft
+Thumbs.db
+desktop.ini
+.DS_Store
