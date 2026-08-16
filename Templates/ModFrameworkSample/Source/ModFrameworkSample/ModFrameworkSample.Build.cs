@@ -21,10 +21,17 @@ public class ModFrameworkSample : ModuleRules
 			"Slate"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			// The game installs the framework and defines its public modding surface in the SDK.
+			// Both are private: the game's own headers must never leak modding types into whatever
+			// includes them, and nothing here should tempt the SDK into depending back on the game.
+			"ModFramework",
+			"GameModSDK"
+		});
 
 		PublicIncludePaths.AddRange(new string[] {
 			"ModFrameworkSample",
+			"ModFrameworkSample/Modding",
 			"ModFrameworkSample/Variant_Platforming",
 			"ModFrameworkSample/Variant_Platforming/Animation",
 			"ModFrameworkSample/Variant_Combat",

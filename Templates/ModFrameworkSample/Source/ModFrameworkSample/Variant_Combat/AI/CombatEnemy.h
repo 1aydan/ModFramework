@@ -216,6 +216,10 @@ public:
 	/** Overrides landing to reset damage ragdoll physics */
 	virtual void Landed(const FHitResult& Hit) override;
 
+	/** Returns max HP. Read-only accessor so the modding API can report health without widening
+	 *  access to the field itself. CurrentHP is already public. See Modding/SampleCombatModAPI.cpp. */
+	FORCEINLINE float GetMaxHP() const { return MaxHP; }
+
 protected:
 
 	/** Blueprint handler to play damage received effects */

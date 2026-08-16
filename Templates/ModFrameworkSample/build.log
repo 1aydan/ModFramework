@@ -1,0 +1,44 @@
+Using bundled DotNet SDK version: 10.0 win-x64
+Running UnrealBuildTool: dotnet "..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" ModFrameworkSampleEditor Win64 Development -project=F:\SelfProjects\Unreal\Plugins\ModFramework\Templates\ModFrameworkSample\ModFrameworkSample.uproject -waitmutex -NoHotReload
+Log file: C:\Users\aydan\AppData\Local\UnrealBuildTool\Log.txt
+Determining max actions to execute in parallel (8 physical cores, 16 logical cores)
+  Executing up to 8 processes, one per physical core
+UbaServer - Listening on 0.0.0.0:1345
+Plugin 'MetaHumanGenerator' depends on plugin 'StructUtils' which was deprecated in 5.5 and will soon be removed. Please update your dependencies.
+Project 'ModFrameworkSampleEditor' depends on plugin 'StructUtils' which was deprecated in 5.5 and will soon be removed. Please update your dependencies.
+UHT compiled-in object format Default
+Building ModFrameworkSampleEditor...
+===== Toolchain Information =====
+Using ISPC compiler (F:\SelfProjects\Unreal\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2) 
+Using Visual Studio 14.44.35227 toolchain (C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.22621.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+[Adaptive Build] Excluded from GameModSDK unity file: GameModSDKModule.cpp, GameCombatModAPI.cpp, GameUIModAPI.cpp, GameWorldModAPI.cpp, GameEnemyDefinition.cpp, GameWeaponDefinition.cpp, GameModEvents.cpp, GameEnemyExtension.cpp, GameModSDKExtensionPoints.cpp, GameRuleExtension.cpp, GameUIExtension.cpp, GameWeaponExtension.cpp
+[Adaptive Build] Excluded from ModFrameworkDeveloper unity file: ModFrameworkDeveloperModule.cpp
+[Adaptive Build] Excluded from ModFrameworkEditor unity file: ModDeveloperWindow.cpp, ModEditorCommands.cpp, ModFrameworkEditorModule.cpp
+[Adaptive Build] Excluded from ModFramework unity file: ModFrameworkModule.cpp, ModAPI.cpp, ModAPIRegistry.cpp, ModConflictDetector.cpp, ModAssetLibrary.cpp, ModContentManager.cpp, ModIconCache.cpp, ModLooseContentMounter.cpp, ModPakContentMounter.cpp, ModFrameworkTypes.cpp, ModFrameworkVersion.cpp, ModConsoleCommands.cpp, ModDependencyResolver.cpp, ModEventBus.cpp, ModEventTypes.cpp, ModContentBundle.cpp, ModExtension.cpp, ModExtensionRegistry.cpp, ModManifest.cpp, ModManifestParser.cpp, ModVersion.cpp, ModNetworkStatics.cpp, ModNetworkValidator.cpp, ModSessionManifest.cpp, ModPackageFormat.cpp, ModPermissionRegistry.cpp, ModPermissions.cpp, LocalFileModProvider.cpp, ModRegistry.cpp, ModContext.cpp, ModEntryPointBase.cpp, ModSaveDataManager.cpp, ModSaveGame.cpp, ModFrameworkSettings.cpp, ModSubsystem.cpp, ModDependencyTests.spec.cpp, ModManifestTests.spec.cpp
+[Adaptive Build] Excluded from ModFrameworkSample unity file: ModFrameworkSample.cpp, ModFrameworkSampleCharacter.cpp, ModFrameworkSampleGameMode.cpp, ModFrameworkSamplePlayerController.cpp, SampleCombatModAPI.cpp, SampleModIntegration.cpp, SampleUIModAPI.cpp, SampleWorldModAPI.cpp, CombatCharacter.cpp, CombatGameMode.cpp, CombatPlayerController.cpp, CombatAIController.cpp, CombatEnemy.cpp, CombatEnemySpawner.cpp, CombatStateTreeUtility.cpp, EnvQueryContext_Danger.cpp, EnvQueryContext_Player.cpp, AnimNotify_CheckChargedAttack.cpp, AnimNotify_CheckCombo.cpp, AnimNotify_DoAttackTrace.cpp, CombatActivationVolume.cpp, CombatCheckpointVolume.cpp, CombatDamageableBox.cpp, CombatDummy.cpp, CombatLavaFloor.cpp, CombatActivatable.cpp, CombatAttacker.cpp, CombatDamageable.cpp, CombatLifeBar.cpp, PlatformingCharacter.cpp, PlatformingGameMode.cpp, PlatformingPlayerController.cpp, AnimNotify_EndDash.cpp, SideScrollingCameraManager.cpp, SideScrollingCharacter.cpp, SideScrollingGameMode.cpp, SideScrollingPlayerController.cpp, SideScrollingAIController.cpp, SideScrollingNPC.cpp, SideScrollingStateTreeUtility.cpp, SideScrollingJumpPad.cpp, SideScrollingMovingPlatform.cpp, SideScrollingPickup.cpp, SideScrollingSoftPlatform.cpp, SideScrollingInteractable.cpp, SideScrollingUI.cpp
+=================================
+Using Unreal Build Accelerator local executor to run 13 action(s)
+  CPU 8 physical cores, 16 logical cores
+  Memory 63.68 GB physical, 22.02 GB/87.68 GB committed
+  UBA Storage capacity 40 GB
+[1/13] Compile [x64] CombatCheckpointVolume.cpp
+[2/13] Compile [x64] CombatEnemySpawner.cpp
+[3/13] Compile [x64] EnvQueryContext_Danger.cpp
+[4/13] Compile [x64] CombatEnemy.cpp
+[5/13] Compile [x64] CombatStateTreeUtility.cpp
+[6/13] Compile [x64] CombatPlayerController.cpp
+[7/13] Compile [x64] CombatCharacter.cpp
+[8/13] Compile [x64] SampleCombatModAPI.cpp
+[9/13] Compile [x64] Module.ModFrameworkSample.cpp
+[10/13] Compile [x64] SampleWorldModAPI.cpp
+[11/13] Link [x64] UnrealEditor-ModFrameworkSample.lib
+[12/13] Link [x64] UnrealEditor-ModFrameworkSample.dll
+[13/13] WriteMetadata ModFrameworkSampleEditor.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 5.22 seconds
+Output binary: F:\SelfProjects\Unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe
+
+Result: Succeeded
+Total execution time: 7.28 seconds
+Trace written to file C:\Users\aydan\AppData\Local\UnrealBuildTool\Trace.uba with size 8.1kb

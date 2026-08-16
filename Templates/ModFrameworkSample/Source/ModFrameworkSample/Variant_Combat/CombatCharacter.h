@@ -337,4 +337,11 @@ public:
 
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	/** Returns current HP. Read-only accessor so the modding API can report health without
+	 *  widening access to the field itself. See Modding/SampleCombatModAPI.cpp. */
+	FORCEINLINE float GetCurrentHP() const { return CurrentHP; }
+
+	/** Returns max HP. Read-only, same reason as GetCurrentHP. */
+	FORCEINLINE float GetMaxHP() const { return MaxHP; }
 };

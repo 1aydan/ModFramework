@@ -17,6 +17,14 @@
 	],
 	"Plugins": [
 		{
+			"Name": "ModFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "GameModSDK",
+			"Enabled": true
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

@@ -11,12 +11,17 @@ public class GameModSDK : ModuleRules
 
 		// Everything here is public on purpose: this module IS the mod-facing surface, so a mod
 		// author's project must be able to see all of it after installing only the SDK bundle.
+		//
+		// UMG is here because UGameUIModAPI's public signature names UUserWidget, as does
+		// UGameUIExtension::GetWidgetClass. It is an engine module, not game code, so it does not
+		// weaken the rule below.
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"ModFramework"
+			"ModFramework",
+			"UMG"
 		});
 
 		// The SDK must never depend on the game's own module. If this list ever needs to grow to

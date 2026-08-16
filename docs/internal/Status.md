@@ -2,8 +2,14 @@
 
 Internal working document. Read this first when resuming work with no prior conversation context.
 
-**Last updated:** 2026-08-16 — core runtime written and restructured, first compile pass done
-(2 real bugs found and fixed), integration workflow in flight. Nothing committed to git yet.
+**Last updated:** 2026-08-16 — **the whole stack compiles clean**, including the sample game with
+its mod integration. 121 C++ files. Verify plugins alone with `.dev/build-harness.ps1`, or the full
+integration with `.dev/build-sample.ps1` (close the editor first — it locks module DLLs).
+
+Working end to end in code: manifests, versioning, dependency resolution, lifecycle, content
+mounting, API/extension/event registries, permissions, save isolation, multiplayer validation,
+`.mod` read **and write**, console commands, and a real game registering a real modding surface.
+Outstanding: SDK generation, 2 of 4 test suites, editor tooling, and any `.uasset` content.
 
 ---
 
@@ -68,9 +74,11 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
   `bEnableConsoleCommands` check happens *inside* each command's lambda. Getting this wrong crashes
   at engine start.
 - **`UncookedOnly` includes program targets.** `UnrealEd.Build.cs` throws a hard `BuildException`
-  when `bCompileAgainstEditor` is false. `ModFrameworkDeveloper` currently lists `UnrealEd`
-  unconditionally — wrap it in `if (Target.bCompileAgainstEditor)` and guard the code with
-  `WITH_EDITOR`. **Not yet done.**
+  when `bCompileAgainstEditor` is false, so an unconditional `UnrealEd` dependency in an
+  `UncookedOnly` module breaks any build that enables the plugin for a program target. Fixed:
+  `ModFrameworkDeveloper` now guards `UnrealEd` and `DesktopPlatform` behind
+  `if (Target.bCompileAgainstEditor)`. **Keep it that way**, and guard code behind them with
+  `WITH_EDITOR`.
 - `UGameplayStatics::ParseOption(FString Options, ...)` takes `Options` **by value**.
 - `FARFilter::ClassNames` deprecated since 5.1 — use `ClassPaths` (`TArray<FTopLevelAssetPath>`).
 - `TInstancedStruct` → `StructUtils/InstancedStruct.h` (CoreUObject).
@@ -85,6 +93,10 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
   unreachable dead code, and a null slot crashes *inside the engine wrapper* before your code runs.
   GC can null a `UPROPERTY` `TObjectPtr` slot at any time, so always `RemoveAll` invalid entries
   **before** sorting. This was a live latent crash in `ModExtensionRegistry::SortExtensionList`.
+- **In automation specs, do not name a local `Description`.** `FAutomationTestBase` has a
+  `Description` member, and UE builds with warnings-as-errors, so `C4458: declaration of
+  'Description' hides class member` fails the build. Use `FailureMessage` or similar. Same applies
+  to any other base-class member name — specs inherit a lot.
 - **Never name a file-local helper `MakeError`.** `Templates/ValueOrError.h` declares a global
   variadic `MakeError(ArgTypes&&...)` that is an exact match for any argument list. Inside your own
   namespace it resolves fine; at any call site reached via a `using`-directive both land in one
@@ -99,14 +111,27 @@ Plugins/ModFramework/              repo root, git origin -> github.com/1aydan/Mo
 2. ~~Restructure into `ModFramework/`~~ — done
 3. ~~First compile~~ — done. 13 diagnostics → 2 real bugs (both in Gotchas above), both fixed.
    4 of the 13 were files not yet written.
-4. **IN FLIGHT: `.dev/workflows/02-integration.js`** (run `wf_4c206c88-a55`) — `UModContext`,
-   `UModEntryPointBase`, `UModIconCache` + the manifest `icon` field, `UModSubsystem`, the full
-   `Mod.*` console command set, and 4 automation test suites.
-   **If resuming and unsure whether it finished:** check
-   `<session>/subagents/workflows/wf_4c206c88-a55/journal.jsonl` for `{"type":"result"}` lines
-   (8 expected). If it did not finish, just re-run the script — agents overwrite whole files, so a
-   partial run is not corrupting, but do check for a truncated file from an agent killed mid-write.
-5. **Recompile.** `.dev/build-harness.ps1` builds a throwaway host project at
+4. `.dev/workflows/02-integration.js` (run `wf_4c206c88-a55`) — **partially complete.** Landed and
+   verified non-truncated: `UModContext`, `UModEntryPointBase`, `UModIconCache` + the manifest
+   `icon` field, `UModSubsystem` (2448-line .cpp), and the full `Mod.*` console command set
+   (2454-line .cpp).
+   **Still missing: all four automation test suites.** Those agents were killed by a monthly API
+   spend limit, not by any code problem. To finish them:
+   `Workflow({scriptPath: '.dev/workflows/02-integration.js', resumeFromRunId: 'wf_4c206c88-a55'})`
+   replays the five completed agents from cache and re-runs only the test agents. If the run id has
+   expired, just run the script fresh — agents overwrite whole files, so re-running is safe; only
+   check for a file truncated by an agent killed mid-write.
+
+   **Two lifecycle constraints the ModContext agent flagged — verify `UModSubsystem` honours them:**
+   - `UnloadMod` must call `UModExtensionRegistry::UnregisterAllForMod`,
+     `UModEventBus::UnsubscribeAllForMod` and `UModAPIRegistry::UnregisterAllForMod` **before**
+     `UModRegistry::ReleaseModObjects`. Extensions created via `UModContext` are both held by the
+     extension registry and tracked by the mod registry; releasing first leaves the extension
+     registry holding garbage `TObjectPtr`s.
+   - `UModContext` must be created with the subsystem as its outer, and the entry point with its
+     context as outer — both `GetWorld()` fallbacks depend on that chain.
+5. ~~Compile clean~~ — **done.** All four modules build and link. Two bugs fixed along the way, both
+   recorded in Gotchas. Re-verify any time with `.dev/build-harness.ps1`, which builds a host project at
    `F:\SelfProjects\Unreal\_ModHarness` that junctions both plugins in. Prefer it over the sample
    project while the user's editor is open — building would fight the editor for module DLL locks
    and kill their MCP server. Pass `-Clean` to wipe plugin intermediates.
@@ -137,12 +162,16 @@ rather than depending on local editor state. **Not yet done.**
 
 ## Known incomplete
 
-- **Not yet compiled clean.** The first build got to 13 diagnostics; the 2 real bugs are fixed but
-  the build has not been re-run since, and `UModSubsystem` did not exist for it. Expect a fresh
-  crop of errors once workflow 2's files land — nothing after `UModSubsystem` has ever compiled.
-- `ModFrameworkDeveloper` `UnrealEd` dependency not yet guarded with
-  `if (Target.bCompileAgainstEditor)`. Harmless today (editor targets only) — breaks the moment the
-  plugin is enabled for a program target.
+- **Two of four automation test suites are missing** — `ModLifecycleTests.spec.cpp` and
+  `ModSystemsTests.spec.cpp`. `ModManifestTests` and `ModDependencyTests` landed and compile.
+  The missing agents were killed by an API spend limit, not by any code problem.
+- **SDK generation is not written.** `FModPublicApiScanner`, `FModSDKGenerator` and the
+  `GenerateModSDK` commandlet. Everything they depend on exists and compiles; see
+  `.dev/workflows/03-sdk-and-packaging.js` for the full brief (the `tool:sdkgen` agent).
+- **Editor tooling is placeholder only** — see the placeholder list below. This is the phase the
+  user explicitly asked for last, both mod-author and game-developer sides.
+- **No `.uasset` content exists**, so the example mod cannot actually load yet. Needs a live editor
+  over MCP; `.uasset` is binary and cannot be hand-authored.
 - These are **placeholders** that workflow 2 / the editor phase replace, not finished work:
   - `Private/Debug/ModConsoleCommands.{h,cpp}` — empty `Register()`/`Unregister()` so the module links
   - `ModDeveloperWindow` — registers a real nomad tab but its content is a "not implemented" label.
